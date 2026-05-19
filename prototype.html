@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Todo Manager</title>
+<style>
+/* ============================================================
+   CSS Variables — Light & Dark Themes
+   ============================================================ */
+:root {
+  --font-sans: "PingFang SC","Microsoft YaHei","Hiragino Sans GB","Noto Sans CJK SC",system-ui,-apple-system,sans-serif;
+  --font-mono: "SF Mono","Fira Code","Cascadia Code",monospace;
+  --radius-sm: 6px; --radius-md: 10px; --radius-lg: 14px; --radius-xl: 18px;
+  --transition-fast: 0.15s ease;
+  --transition-smooth: 0.25s cubic-bezier(0.4,0,0.2,1);
+}
+
+[data-theme="light"] {
+  --bg-root:#F1F5F9; --bg-surface:#FFF; --bg-surface-alt:#F8FAFC; --bg-hover:#F1F5F9;
+  --bg-active:#E2E8F0; --bg-today:#EFF6FF; --bg-today-hover:#DBEAFE; --bg-modal:#FFF;
+  --bg-overlay:rgba(15,23,42,0.45); --bg-toast:#1E293B; --bg-subtask:#F8FAFC;
+  --bg-input:#FFF; --bg-dropdown:#FFF;
+  --text-primary:#0F172A; --text-secondary:#475569; --text-tertiary:#94A3B8;
+  --text-inverse:#FFF; --text-link:#2563EB;
+  --border:#E2E8F0; --border-light:#F1F5F9; --border-focus:#3B82F6;
+  --shadow-sm:0 1px 2px rgba(0,0,0,0.05); --shadow-md:0 4px 6px -1px rgba(0,0,0,0.07);
+  --shadow-lg:0 10px 15px -3px rgba(0,0,0,0.08); --shadow-xl:0 20px 25px -5px rgba(0,0,0,0.1);
+  --shadow-modal:0 25px 50px -12px rgba(0,0,0,0.25);
+  --cp:#9CA3AF; --cpb:#F3F4F6; --cp-sub:#D1D5DB; --cp-sub-bg:#F9FAFB;
+  --ca:#3B82F6; --cab:#EFF6FF; --ca-sub:#93C5FD; --ca-sub-bg:#F0F7FF;
+  --cd:#10B981; --cdb:#ECFDF5; --cd-sub:#6EE7B7; --cd-sub-bg:#F0FDF6;
+  --cc:#9CA3AF; --ccb:#F3F4F6; --cc-sub:#D1D5DB; --cc-sub-bg:#F9FAFB;
+  --color-danger:#EF4444; --color-danger-hover:#DC2626; --color-danger-bg:#FEF2F2;
+  --scrollbar-thumb:#CBD5E1; --scrollbar-track:transparent;
+}
+[data-theme="dark"] {
+  --bg-root:#0B1120; --bg-surface:#1E293B; --bg-surface-alt:#172033; --bg-hover:#273548;
+  --bg-active:#334155; --bg-today:#1E3A5F; --bg-today-hover:#254574; --bg-modal:#1E293B;
+  --bg-overlay:rgba(0,0,0,0.65); --bg-toast:#F1F5F9; --bg-subtask:#1A2744;
+  --bg-input:#0F172A; --bg-dropdown:#1E293B;
+  --text-primary:#F1F5F9; --text-secondary:#94A3B8; --text-tertiary:#64748B;
+  --text-inverse:#0F172A; --text-link:#60A5FA;
+  --border:#334155; --border-light:#1E293B; --border-focus:#60A5FA;
+  --shadow-sm:0 1px 2px rgba(0,0,0,0.3); --shadow-md:0 4px 6px -1px rgba(0,0,0,0.4);
+  --shadow-lg:0 10px 15px -3px rgba(0,0,0,0.5); --shadow-xl:0 20px 25px -5px rgba(0,0,0,0.6);
+  --shadow-modal:0 25px 50px -12px rgba(0,0,0,0.6);
+  --cp:#6B7280; --cpb:#1F2937; --cp-sub:#4B5563; --cp-sub-bg:#1A2332;
+  --ca:#3B82F6; --cab:#1E3A5F; --ca-sub:#1D4ED8; --ca-sub-bg:#1A3050;
+  --cd:#34D399; --cdb:#064E3B; --cd-sub:#059669; --cd-sub-bg:#053B2E;
+  --cc:#6B7280; --ccb:#1F2937; --cc-sub:#4B5563; --cc-sub-bg:#1A2332;
+  --color-danger:#F87171; --color-danger-hover:#EF4444; --color-danger-bg:#450A0A;
+  --scrollbar-thumb:#475569; --scrollbar-track:transparent;
+}
+
+/* Reset */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:var(--font-sans);font-size:14px;color:var(--text-primary);background:var(--bg-root);overflow:hidden;-webkit-font-smoothing:antialiased}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:var(--scrollbar-track)}
+::-webkit-scrollbar-thumb{background:var(--scrollbar-thumb);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--text-tertiary)}
+
+/* Layout */
+#app{display:flex;flex-direction:column;height:100vh;max-width:1600px;margin:0 auto;padding:12px 20px;gap:10px}
+
+/* Top Bar */
+#top-bar{display:flex;align-items:center;gap:12px;flex-shrink:0}
+#theme-btn{width:40px;height:40px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--bg-surface);color:var(--text-primary);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all var(--transition-fast);flex-shrink:0}
+#theme-btn:hover{background:var(--bg-hover);transform:scale(1.05)}
+#theme-btn:active{transform:scale(0.95)}
+#search-wrap{flex:1;position:relative}
+#search-input{width:100%;height:40px;padding:0 44px 0 16px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--bg-surface);color:var(--text-primary);font-size:14px;font-family:var(--font-sans);outline:none;transition:all var(--transition-fast)}
+#search-input:focus{border-color:var(--border-focus);box-shadow:0 0 0 3px rgba(59,130,246,0.1)}
+#search-input::placeholder{color:var(--text-tertiary)}
+#search-btn{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:32px;height:32px;border:none;border-radius:8px;background:transparent;color:var(--text-tertiary);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all var(--transition-fast)}
+#search-btn:hover{background:var(--bg-hover);color:var(--text-primary)}
+
+/* Search Dropdown */
+#search-dropdown{display:none;position:absolute;top:44px;left:0;right:0;max-height:360px;overflow-y:auto;background:var(--bg-dropdown);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-xl);z-index:100}
+#search-dropdown.active{display:block}
+.search-result-item{padding:12px 16px;cursor:pointer;border-bottom:1px solid var(--border-light);transition:background var(--transition-fast)}
+.search-result-item:last-child{border-bottom:none}
+.search-result-item:hover{background:var(--bg-hover)}
+.search-result-item .sr-title{font-weight:600;color:var(--text-primary);display:flex;align-items:center;gap:8px}
+.search-result-item .sr-date{font-size:12px;color:var(--text-tertiary);font-weight:400}
+.search-result-item .sr-bg{font-size:12px;color:var(--text-secondary);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#search-total{padding:8px 16px;font-size:12px;color:var(--text-tertiary);text-align:center;border-top:1px solid var(--border-light)}
+
+/* Month Navigation */
+#month-nav{display:flex;align-items:center;justify-content:center;gap:8px;flex-shrink:0;user-select:none;position:relative}
+.nav-arrow{width:36px;height:36px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--bg-surface);color:var(--text-primary);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all var(--transition-fast)}
+.nav-arrow:hover:not(.disabled){background:var(--bg-hover)}
+.nav-arrow.disabled{opacity:0.3;cursor:default}
+.nav-clickable{padding:6px 14px;border-radius:var(--radius-md);cursor:pointer;font-size:20px;font-weight:700;letter-spacing:0.02em;color:var(--text-primary);transition:all var(--transition-fast)}
+.nav-clickable:hover{background:var(--bg-hover)}
+.picker-wrap{position:relative;display:inline-block}
+.picker-dropdown{display:none;position:absolute;top:100%;left:50%;transform:translateX(-50%);background:var(--bg-dropdown);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-xl);z-index:100;padding:8px;margin-top:6px}
+.picker-dropdown.active{display:block}
+.month-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;width:260px}
+.month-option,.year-option{padding:8px 12px;text-align:center;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;font-weight:500;color:var(--text-primary);transition:all var(--transition-fast)}
+.month-option:hover,.year-option:hover{background:var(--bg-hover)}
+.month-option.current,.year-option.current{background:#3B82F6;color:#FFF}
+.year-picker-nav{display:flex;align-items:center;justify-content:space-between;padding:4px 4px 8px;gap:4px}
+.year-picker-nav button{width:28px;height:28px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-surface);color:var(--text-primary);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
+.year-picker-nav button:hover{background:var(--bg-hover)}
+.year-range-label{font-size:13px;font-weight:600;color:var(--text-secondary);padding:0 8px}
+.year-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;width:200px}
+
+/* Calendar */
+#calendar-wrap{flex:6;display:flex;flex-direction:column;background:var(--bg-surface);border-radius:var(--radius-xl);border:1px solid var(--border);overflow:hidden;box-shadow:var(--shadow-sm);min-height:0}
+.cal-header{display:grid;grid-template-columns:repeat(7,1fr);border-bottom:1px solid var(--border);flex-shrink:0}
+.cal-header-day{padding:10px 0;text-align:center;font-size:12px;font-weight:600;color:var(--text-tertiary);letter-spacing:0.05em;border-right:1px solid var(--border-light)}
+.cal-header-day:last-child{border-right:none}
+.cal-header-day.weekend{color:#EF4444;opacity:0.6}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);flex:1;min-height:0}
+.cal-cell{border-right:1px solid var(--border-light);border-bottom:1px solid var(--border-light);display:flex;flex-direction:column;overflow:hidden;cursor:pointer;transition:background var(--transition-fast);min-height:0}
+.cal-cell:nth-child(7n){border-right:none}
+.cal-cell:hover{background:var(--bg-hover)}
+.cal-cell.other-month .cell-date{color:var(--text-tertiary);opacity:0.4}
+.cal-cell.today{background:var(--bg-today)}
+.cal-cell.today:hover{background:var(--bg-today-hover)}
+.cal-cell.selected{box-shadow:inset 0 0 0 2px var(--border-focus);background:var(--bg-today)}
+.cell-date-row{display:flex;align-items:center;gap:4px;padding:5px 8px 3px;flex-shrink:0;min-height:26px}
+.cell-date{font-size:13px;font-weight:600;color:var(--text-primary);line-height:1}
+.today-dot{width:7px;height:7px;border-radius:50%;background:#3B82F6;flex-shrink:0}
+.today-label{font-size:10px;color:#3B82F6;font-weight:600}
+.cell-tasks{flex:1;overflow-y:auto;overflow-x:hidden;padding:2px 4px 4px;min-height:0}
+
+/* Task Bars */
+.task-bar{display:flex;align-items:center;padding:3px 6px;margin:1px 0;border-radius:4px;font-size:11px;line-height:1.5;cursor:pointer;border-left:3px solid #9CA3AF;transition:all var(--transition-fast);position:relative;white-space:nowrap;overflow:visible;min-height:20px}
+.task-bar .task-title-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+.task-bar:hover{filter:brightness(0.93)}
+.task-bar.status-pending{border-left-color:var(--cp);background:var(--cpb)}
+.task-bar.status-active{border-left-color:var(--ca);background:var(--cab)}
+.task-bar.status-done{border-left-color:var(--cd);background:var(--cdb)}
+.task-bar.status-cancelled{border-left-color:var(--cc);background:var(--ccb);text-decoration:line-through;color:var(--text-tertiary)}
+.task-bar.subtask{border-left-style:dashed;margin-left:14px;font-style:italic;font-size:10px;padding-left:2px}
+.task-bar.subtask::before{content:"└─";margin-right:2px;font-style:normal;font-size:10px;color:var(--text-tertiary);flex-shrink:0}
+.task-bar.subtask.status-pending{border-left-color:var(--cp-sub);background:var(--cp-sub-bg)}
+.task-bar.subtask.status-active{border-left-color:var(--ca-sub);background:var(--ca-sub-bg)}
+.task-bar.subtask.status-done{border-left-color:var(--cd-sub);background:var(--cd-sub-bg)}
+.task-bar.subtask.status-cancelled{border-left-color:var(--cc-sub);background:var(--cc-sub-bg);color:var(--text-tertiary)}
+.task-bar-actions{display:none;position:absolute;right:4px;top:50%;transform:translateY(-50%);gap:2px;background:inherit;padding:0 2px;border-radius:4px;z-index:2}
+.task-bar:hover .task-bar-actions{display:flex}
+.task-bar-btn{width:20px;height:20px;border:none;border-radius:4px;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.7);color:var(--text-secondary);transition:all var(--transition-fast);padding:0;line-height:1}
+.task-bar-btn:hover{background:var(--bg-active)}
+.task-bar-btn.danger:hover{background:var(--color-danger-bg);color:var(--color-danger)}
+.task-bar-btn.add:hover{background:#EFF6FF;color:#3B82F6}
+.task-bar.highlighted{box-shadow:0 0 0 2px var(--border-focus);z-index:1}
+.more-indicator{text-align:center;font-size:10px;color:var(--text-tertiary);padding:2px 0;flex-shrink:0;opacity:0.7}
+
+/* Detail Panel */
+#detail-panel{flex:4;background:var(--bg-surface);border-radius:var(--radius-xl);border:1px solid var(--border);box-shadow:var(--shadow-sm);display:flex;flex-direction:column;overflow:hidden;min-height:0}
+.detail-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);flex-shrink:0}
+.detail-title-wrap{display:flex;align-items:baseline;gap:8px}
+.detail-title{font-size:16px;font-weight:700;color:var(--text-primary)}
+.detail-subtitle{font-size:12px;color:var(--text-tertiary)}
+#new-task-btn{padding:8px 22px;background:var(--color-danger);color:#FFF;border:none;border-radius:var(--radius-md);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-sans);transition:all var(--transition-fast);white-space:nowrap}
+#new-task-btn:hover{background:var(--color-danger-hover);transform:translateY(-1px);box-shadow:var(--shadow-md)}
+#new-task-btn:active{transform:translateY(0)}
+.detail-scroll{flex:1;overflow-y:auto;padding:14px 18px}
+.detail-task-card{background:var(--bg-surface-alt);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:10px;transition:all var(--transition-fast)}
+.detail-task-card:hover{border-color:var(--border-focus);box-shadow:var(--shadow-sm)}
+.detail-task-card.subtask-card{margin-left:24px;border-left:3px dashed var(--text-tertiary);background:var(--bg-subtask)}
+.detail-field{display:flex;align-items:flex-start;margin-bottom:7px;gap:8px}
+.detail-field:last-child{margin-bottom:0}
+.detail-label{font-size:12px;font-weight:600;color:var(--text-tertiary);min-width:60px;flex-shrink:0;text-align:right;padding-top:2px}
+.detail-value{font-size:13px;color:var(--text-primary);flex:1;word-break:break-word}
+.detail-value.title-row{display:flex;align-items:center;gap:8px}
+.detail-title-text{font-weight:700;font-size:15px}
+.detail-actions{display:flex;gap:4px;margin-left:auto;flex-shrink:0}
+.detail-action-btn{width:28px;height:28px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-surface);cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;transition:all var(--transition-fast);color:var(--text-secondary)}
+.detail-action-btn:hover{background:var(--bg-hover)}
+.detail-action-btn.edit-btn:hover{background:#EFF6FF;color:#3B82F6;border-color:#3B82F6}
+.detail-action-btn.danger-btn:hover{background:var(--color-danger-bg);color:var(--color-danger);border-color:var(--color-danger)}
+.detail-action-btn.add-btn:hover{background:#EFF6FF;color:#3B82F6;border-color:#3B82F6}
+.status-badge{display:inline-flex;align-items:center;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600}
+.status-badge.pending{background:var(--cpb);color:var(--cp)}
+.status-badge.active{background:var(--cab);color:var(--ca)}
+.status-badge.done{background:var(--cdb);color:var(--cd)}
+.status-badge.cancelled{background:var(--ccb);color:var(--cc);text-decoration:line-through}
+.detail-empty{display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-tertiary);font-size:14px;flex-direction:column;gap:8px;opacity:0.6}
+.detail-empty-icon{font-size:36px}
+
+/* Modals */
+.modal-overlay{display:none;position:fixed;inset:0;background:var(--bg-overlay);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.modal-overlay.active{display:flex}
+.modal{background:var(--bg-modal);border-radius:var(--radius-xl);border:1px solid var(--border);box-shadow:var(--shadow-modal);width:440px;max-width:90vw;max-height:85vh;overflow-y:auto;animation:modalIn 0.2s ease}
+@keyframes modalIn{from{opacity:0;transform:scale(0.95) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.modal.subtask-modal{background:var(--bg-subtask)}
+.modal-header{padding:16px 20px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.modal-title{font-size:16px;font-weight:700;color:var(--text-primary)}
+.modal-parent-info{font-size:12px;color:var(--text-tertiary);margin-top:2px}
+.modal-close{width:28px;height:28px;border:none;border-radius:8px;background:transparent;color:var(--text-tertiary);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:background var(--transition-fast)}
+.modal-close:hover{background:var(--bg-hover)}
+.modal-body{padding:16px 20px}
+.modal-field{margin-bottom:14px}
+.modal-field:last-child{margin-bottom:0}
+.modal-field label{display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px}
+.modal-field input[type="text"],.modal-field input[type="date"],.modal-field textarea,.modal-field select{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text-primary);font-size:13px;font-family:var(--font-sans);outline:none;transition:border-color var(--transition-fast)}
+.modal-field input:focus,.modal-field textarea:focus,.modal-field select:focus{border-color:var(--border-focus)}
+.modal-field textarea{resize:vertical;min-height:80px}
+.status-radio-group{display:flex;gap:8px;flex-wrap:wrap}
+.status-radio{padding:6px 14px;border:1.5px solid var(--border);border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;background:var(--bg-surface);color:var(--text-secondary);transition:all var(--transition-fast);font-family:var(--font-sans)}
+.status-radio:hover{border-color:var(--text-tertiary)}
+.status-radio.selected{border-color:var(--border-focus);color:var(--border-focus);background:var(--bg-today)}
+.modal-footer{padding:12px 20px 16px;display:flex;justify-content:flex-end;gap:8px}
+.btn{padding:8px 20px;border-radius:var(--radius-md);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-sans);transition:all var(--transition-fast);border:1px solid transparent}
+.btn-primary{background:#3B82F6;color:#FFF;border-color:#3B82F6}
+.btn-primary:hover{background:#2563EB}
+.btn-danger{background:var(--color-danger);color:#FFF;border-color:var(--color-danger)}
+.btn-danger:hover{background:var(--color-danger-hover)}
+.btn-secondary{background:var(--bg-surface);color:var(--text-primary);border-color:var(--border)}
+.btn-secondary:hover{background:var(--bg-hover)}
+.modal-error{color:var(--color-danger);font-size:12px;margin-top:4px;display:none}
+.modal-error.active{display:block}
+
+/* Delete Confirm */
+.delete-confirm-text{font-size:14px;color:var(--text-primary);line-height:1.6;margin-bottom:4px}
+.delete-sub-hint{font-size:12px;color:var(--color-danger);margin-top:4px}
+
+/* Toast */
+#toast-container{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:300;display:flex;flex-direction:column;gap:8px;align-items:center}
+.toast{background:var(--bg-toast);color:var(--text-inverse);padding:10px 20px;border-radius:var(--radius-lg);font-size:13px;font-weight:500;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:12px;animation:toastIn 0.3s ease,toastOut 0.3s ease 4.5s forwards;white-space:nowrap}
+@keyframes toastIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes toastOut{from{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(-8px)}}
+.toast-undo{color:#60A5FA;cursor:pointer;font-weight:700;background:none;border:none;font-size:13px;font-family:var(--font-sans);padding:2px 6px;border-radius:4px;transition:background var(--transition-fast)}
+.toast-undo:hover{background:rgba(96,165,250,0.15)}
+
+/* Keyboard shortcut hint */
+kbd{font-size:10px;color:var(--text-tertiary);background:var(--bg-hover);padding:1px 5px;border-radius:3px;font-family:var(--font-mono);border:1px solid var(--border);margin:0 1px}
+
+/* Responsive: 1080p scaling */
+@media (max-height:900px){html,body{font-size:12px}#app{padding:8px 14px;gap:6px}.cal-header-day{padding:6px 0;font-size:10px}.cell-date-row{padding:3px 6px 1px;min-height:20px}.cell-date{font-size:11px}.task-bar{padding:2px 4px;font-size:10px;min-height:16px}.task-bar.subtask{font-size:9px}.nav-clickable{font-size:17px}.detail-title{font-size:14px}.modal{width:380px}}
+@media (min-height:1200px){html,body{font-size:15px}#app{padding:16px 28px;gap:14px}.cal-header-day{padding:14px 0;font-size:13px}.cell-date-row{padding:6px 10px 4px}.cell-date{font-size:14px}.task-bar{padding:4px 8px;font-size:12px;min-height:22px}.task-bar.subtask{font-size:11px}.nav-clickable{font-size:24px}.detail-title{font-size:18px}.modal{width:500px}}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- Top Bar: Theme + Search -->
+  <div id="top-bar">
+    <button id="theme-btn" title="切换明/暗主题 (Ctrl+T)">🌙</button>
+    <div id="search-wrap">
+      <input type="text" id="search-input" placeholder="搜索任务...">
+      <button id="search-btn" title="搜索 (Enter)">🔍</button>
+      <div id="search-dropdown"></div>
+    </div>
+  </div>
+
+  <!-- Month Navigation -->
+  <div id="month-nav">
+    <button class="nav-arrow" id="prev-month" title="上一月 (←)">◀</button>
+    <div class="picker-wrap" id="year-picker-wrap">
+      <span class="nav-clickable nav-year" id="year-display">2026年</span>
+      <div class="picker-dropdown" id="year-dropdown"></div>
+    </div>
+    <div class="picker-wrap" id="month-picker-wrap">
+      <span class="nav-clickable nav-month" id="month-display">5月</span>
+      <div class="picker-dropdown" id="month-dropdown"></div>
+    </div>
+    <button class="nav-arrow" id="next-month" title="下一月 (→)">▶</button>
+  </div>
+
+  <!-- Calendar -->
+  <div id="calendar-wrap">
+    <div class="cal-header" id="cal-header"></div>
+    <div class="cal-grid" id="cal-grid"></div>
+  </div>
+
+  <!-- Detail Panel -->
+  <div id="detail-panel">
+    <div class="detail-header">
+      <div class="detail-title-wrap">
+        <span class="detail-title" id="detail-panel-title">任务详情</span>
+        <span class="detail-subtitle" id="detail-panel-subtitle"></span>
+      </div>
+      <button id="new-task-btn" title="新建任务 (Ctrl+N)">＋ 新建</button>
+    </div>
+    <div class="detail-scroll" id="detail-scroll"></div>
+  </div>
+</div>
+
+<!-- Modals -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal" id="modal">
+    <div class="modal-header">
+      <div><div class="modal-title" id="modal-title">新建任务</div><div class="modal-parent-info" id="modal-parent-info"></div></div>
+      <button class="modal-close" id="modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-field"><label>标题 <span style="color:var(--color-danger)">*</span></label><input type="text" id="field-title" maxlength="50" placeholder="输入任务标题"></div>
+      <div class="modal-field"><label>开始日期</label><input type="date" id="field-start"></div>
+      <div class="modal-field"><label>截止日期</label><input type="date" id="field-end"></div>
+      <div class="modal-field"><label>状态</label><div class="status-radio-group" id="field-status"></div></div>
+      <div class="modal-field"><label>背景</label><textarea id="field-bg" maxlength="500" placeholder="输入任务背景描述（不超过500字）"></textarea></div>
+      <div class="modal-error" id="modal-error"></div>
+    </div>
+    <div class="modal-footer" id="modal-footer"></div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div id="toast-container"></div>
+
+<script>
+// ============================================================
+// Mock Data — May 2026 (today = May 5, 2026)
+// ============================================================
+const STATUS = { PENDING:'未启动', ACTIVE:'完成中', DONE:'已完成', CANCELLED:'已取消' };
+const STATUS_EN = { '未启动':'pending', '完成中':'active', '已完成':'done', '已取消':'cancelled' };
+
+let tasks = [
+  { id:'t1', title:'Q2原型开发', start_date:'2026-05-01', end_date:'2026-05-15', status:STATUS.ACTIVE, background:'完成高保真原型设计，包括交互原型和视觉设计稿，确保与需求文档完全一致。', created_at:'2026-05-01T09:00:00', deleted:false, subtasks:[
+    { id:'t1s1', title:'需求分析确认', start_date:'2026-05-01', end_date:'2026-05-03', status:STATUS.DONE, background:'与产品经理确认所有需求细节', created_at:'2026-05-01T09:30:00', deleted:false },
+    { id:'t1s2', title:'交互原型设计', start_date:'2026-05-03', end_date:'2026-05-08', status:STATUS.ACTIVE, background:'使用Figma完成主要页面交互原型', created_at:'2026-05-03T10:00:00', deleted:false },
+    { id:'t1s3', title:'视觉设计评审', start_date:'2026-05-10', end_date:'2026-05-12', status:STATUS.PENDING, background:'组织设计评审会议，收集反馈意见', created_at:'2026-05-04T14:00:00', deleted:false }
+  ]},
+  { id:'t2', title:'技术方案评审', start_date:'2026-05-01', end_date:'2026-05-01', status:STATUS.DONE, background:'评审微服务架构方案，确认技术选型和接口规范。', created_at:'2026-05-01T08:00:00', deleted:false, subtasks:[] },
+  { id:'t3', title:'团队周会准备', start_date:'2026-05-02', end_date:'2026-05-02', status:STATUS.DONE, background:'准备本周团队周会议程和上周工作总结。', created_at:'2026-05-02T10:00:00', deleted:false, subtasks:[] },
+  { id:'t4', title:'用户调研报告', start_date:'2026-05-04', end_date:'2026-05-10', status:STATUS.ACTIVE, background:'完成目标用户群体调研，整理用户痛点和需求优先级。', created_at:'2026-05-04T09:00:00', deleted:false, subtasks:[
+    { id:'t4s1', title:'访谈提纲准备', start_date:'2026-05-04', end_date:'2026-05-05', status:STATUS.DONE, background:'编写用户访谈问题列表', created_at:'2026-05-04T09:30:00', deleted:false },
+    { id:'t4s2', title:'用户招募', start_date:'2026-05-05', end_date:'2026-05-08', status:STATUS.ACTIVE, background:'通过问卷和社群招募20名目标用户', created_at:'2026-05-04T10:00:00', deleted:false }
+  ]},
+  { id:'t5', title:'界面设计定稿', start_date:'2026-05-05', end_date:'2026-05-12', status:STATUS.ACTIVE, background:'基于需求文档完成Todo Manager全部界面设计，包含所有交互状态和暗色模式。', created_at:'2026-05-05T08:00:00', deleted:false, subtasks:[
+    { id:'t5s1', title:'设计系统搭建', start_date:'2026-05-05', end_date:'2026-05-07', status:STATUS.ACTIVE, background:'建立颜色、字体、间距等设计Token', created_at:'2026-05-05T08:30:00', deleted:false },
+    { id:'t5s2', title:'主页面布局', start_date:'2026-05-06', end_date:'2026-05-09', status:STATUS.PENDING, background:'完成日历视图和详情面板的布局设计', created_at:'2026-05-05T09:00:00', deleted:false }
+  ]},
+  { id:'t6', title:'API接口对接', start_date:'2026-05-05', end_date:'2026-05-20', status:STATUS.PENDING, background:'对接后端RESTful API，完成数据交互层开发。', created_at:'2026-05-05T10:00:00', deleted:false, subtasks:[
+    { id:'t6s1', title:'接口文档整理', start_date:'2026-05-05', end_date:'2026-05-06', status:STATUS.PENDING, background:'整理所有REST API接口文档', created_at:'2026-05-05T10:30:00', deleted:false }
+  ]},
+  { id:'t7', title:'性能优化', start_date:'2026-05-08', end_date:'2026-05-15', status:STATUS.PENDING, background:'优化前端渲染性能，减少不必要的重渲染，提升日历视图滚动流畅度。', created_at:'2026-05-07T11:00:00', deleted:false, subtasks:[] },
+  { id:'t8', title:'里程碑回顾', start_date:'2026-05-10', end_date:'2026-05-10', status:STATUS.CANCELLED, background:'项目已调整排期，本次里程碑回顾取消。', created_at:'2026-05-08T16:00:00', deleted:false, subtasks:[] },
+  { id:'t9', title:'数据库迁移方案', start_date:'2026-05-12', end_date:'2026-05-19', status:STATUS.ACTIVE, background:'制定生产数据库从MySQL迁移到PostgreSQL的完整方案。', created_at:'2026-05-10T10:00:00', deleted:false, subtasks:[
+    { id:'t9s1', title:'数据兼容性评估', start_date:'2026-05-12', end_date:'2026-05-14', status:STATUS.PENDING, background:'评估现有数据的兼容性问题', created_at:'2026-05-10T10:30:00', deleted:false },
+    { id:'t9s2', title:'迁移脚本编写', start_date:'2026-05-15', end_date:'2026-05-18', status:STATUS.PENDING, background:'编写数据迁移自动化脚本', created_at:'2026-05-10T11:00:00', deleted:false }
+  ]},
+  { id:'t10', title:'安全审计', start_date:'2026-05-18', end_date:'2026-05-25', status:STATUS.PENDING, background:'对系统进行全面的安全审计，包括代码扫描、渗透测试和权限审查。', created_at:'2026-05-15T14:00:00', deleted:false, subtasks:[] },
+  { id:'t11', title:'发布准备清单', start_date:'2026-05-20', end_date:'2026-05-22', status:STATUS.DONE, background:'确认所有发布前检查项通过，包括测试覆盖率、性能基准和文档完整性。', created_at:'2026-05-18T09:00:00', deleted:false, subtasks:[] },
+  { id:'t12', title:'客户演示准备', start_date:'2026-05-25', end_date:'2026-05-30', status:STATUS.ACTIVE, background:'准备面向关键客户的演示环境和演示脚本。', created_at:'2026-05-22T10:00:00', deleted:false, subtasks:[
+    { id:'t12s1', title:'演示脚本', start_date:'2026-05-25', end_date:'2026-05-27', status:STATUS.PENDING, background:'编写30分钟演示脚本', created_at:'2026-05-22T10:30:00', deleted:false },
+    { id:'t12s2', title:'演示环境搭建', start_date:'2026-05-28', end_date:'2026-05-29', status:STATUS.PENDING, background:'搭建独立的演示环境', created_at:'2026-05-22T11:00:00', deleted:false }
+  ]}
+];
+
+// ============================================================
+// State
+// ============================================================
+let currentYear = 2026;
+let currentMonth = 5; // 1-indexed
+let selectedDate = '2026-05-05'; // default: today
+let selectedTaskId = null; // null = showing day view, string = showing single task
+let selectedSubtaskId = null;
+let deletedTaskCache = null; // for undo
+let yearPickerPage = 0;
+const TODAY_STR = '2026-05-05';
+const WEEKDAYS = ['一','二','三','四','五','六','日'];
+const MONTHS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+
+// ============================================================
+// Utility Functions
+// ============================================================
+function toDateStr(y,m,d){ return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
+function getDaysInMonth(y,m){ return new Date(y,m,0).getDate(); }
+function getFirstDayOfMonth(y,m){ let d=new Date(y,m-1,1).getDay(); return d===0?6:d-1; }
+
+function getAllVisibleFlat(){
+  let flat=[];
+  for(let t of tasks){
+    if(t.deleted) continue;
+    flat.push({...t, isSub:false, parentId:null});
+    if(t.subtasks){
+      for(let s of t.subtasks){
+        if(s.deleted) continue;
+        flat.push({...s, isSub:true, parentId:t.id, parentTitle:t.title});
+      }
+    }
+  }
+  flat.sort((a,b)=>a.created_at.localeCompare(b.created_at));
+  return flat;
+}
+
+function getTasksForDate(dateStr){
+  let result=[];
+  for(let t of tasks){
+    if(t.deleted) continue;
+    if(dateStr>=t.start_date && dateStr<=t.end_date){
+      result.push({...t, isSub:false, parentId:null});
+    }
+    if(t.subtasks){
+      for(let s of t.subtasks){
+        if(s.deleted) continue;
+        if(dateStr>=s.start_date && dateStr<=s.end_date){
+          result.push({...s, isSub:true, parentId:t.id, parentTitle:t.title});
+        }
+      }
+    }
+  }
+  result.sort((a,b)=>a.created_at.localeCompare(b.created_at));
+  return result;
+}
+
+function findTask(taskId){
+  for(let t of tasks){
+    if(t.id===taskId) return t;
+    if(t.subtasks){
+      for(let s of t.subtasks){ if(s.id===taskId) return s; }
+    }
+  }
+  return null;
+}
+function findParentTask(taskId){
+  for(let t of tasks){
+    if(t.subtasks){
+      for(let s of t.subtasks){ if(s.id===taskId) return t; }
+    }
+  }
+  return null;
+}
+function findTaskParentId(taskId){
+  let p=findParentTask(taskId);
+  return p?p.id:null;
+}
+
+// ============================================================
+// Theme
+// ============================================================
+function initTheme(){
+  let saved=localStorage.getItem('todo-theme');
+  if(saved===null){
+    let prefersDark=window.matchMedia('(prefers-color-scheme:dark)').matches;
+    document.documentElement.dataset.theme=prefersDark?'dark':'light';
+  } else {
+    document.documentElement.dataset.theme=saved;
+  }
+  updateThemeBtn();
+}
+function toggleTheme(){
+  let cur=document.documentElement.dataset.theme;
+  let next=cur==='light'?'dark':'light';
+  document.documentElement.dataset.theme=next;
+  localStorage.setItem('todo-theme',next);
+  updateThemeBtn();
+}
+function updateThemeBtn(){
+  let isDark=document.documentElement.dataset.theme==='dark';
+  document.getElementById('theme-btn').textContent=isDark?'☀️':'🌙';
+}
+initTheme();
+
+// ============================================================
+// Calendar Rendering
+// ============================================================
+function renderCalendar(){
+  document.getElementById('year-display').textContent=currentYear+'年';
+  document.getElementById('month-display').textContent=currentMonth+'月';
+  renderCalHeader();
+  renderCalGrid();
+  updateNavArrowState();
+}
+function renderCalHeader(){
+  let h=document.getElementById('cal-header');
+  h.innerHTML=WEEKDAYS.map((d,i)=>
+    `<div class="cal-header-day${i>=5?' weekend':''}">${d}</div>`
+  ).join('');
+}
+function renderCalGrid(){
+  let grid=document.getElementById('cal-grid');
+  let daysInMonth=getDaysInMonth(currentYear,currentMonth);
+  let firstDay=getFirstDayOfMonth(currentYear,currentMonth);
+  let prevMonthDays=getDaysInMonth(currentYear,currentMonth-1||12);
+  let totalCells=Math.ceil((firstDay+daysInMonth)/7)*7;
+  let html='';
+  for(let i=0;i<totalCells;i++){
+    let dayNum,dateStr,isOtherMonth=false;
+    if(i<firstDay){
+      dayNum=prevMonthDays-firstDay+i+1;
+      let pm=currentMonth-1;let py=currentYear;
+      if(pm===0){pm=12;py--;}
+      dateStr=toDateStr(py,pm,dayNum);
+      isOtherMonth=true;
+    } else if(i>=firstDay+daysInMonth){
+      dayNum=i-firstDay-daysInMonth+1;
+      let nm=currentMonth+1;let ny=currentYear;
+      if(nm===13){nm=1;ny++;}
+      dateStr=toDateStr(ny,nm,dayNum);
+      isOtherMonth=true;
+    } else {
+      dayNum=i-firstDay+1;
+      dateStr=toDateStr(currentYear,currentMonth,dayNum);
+    }
+    let isToday=dateStr===TODAY_STR;
+    let isSelected=dateStr===selectedDate;
+    let tasksForDay=getTasksForDate(dateStr);
+    let cls=['cal-cell'];
+    if(isOtherMonth) cls.push('other-month');
+    if(isToday) cls.push('today');
+    if(isSelected) cls.push('selected');
+    if((new Date(currentYear,currentMonth-1,dayNum).getDay()||7)>=6) cls.push('weekend');
+
+    let taskHtml='';
+    let maxShow=6;
+    let shown=tasksForDay.slice(0,maxShow);
+    for(let t of shown){
+      let tCls=['task-bar','status-'+STATUS_EN[t.status]];
+      if(t.isSub) tCls.push('subtask');
+      if(t.id===selectedTaskId) tCls.push('highlighted');
+      let isParent=!t.isSub&&t.subtasks&&t.subtasks.length>0;
+      taskHtml+=`<div class="${tCls.join(' ')}" data-id="${t.id}" data-date="${dateStr}" onclick="event.stopPropagation();onTaskBarClick('${t.id}','${dateStr}')">
+        <span class="task-title-text">${escHtml(t.title)}</span>
+        <div class="task-bar-actions">
+          <button class="task-bar-btn edit" onclick="event.stopPropagation();openEditModal('${t.id}')" title="编辑">✏️</button>
+          <button class="task-bar-btn danger" onclick="event.stopPropagation();openDeleteConfirm('${t.id}')" title="删除">❌</button>
+          ${isParent?`<button class="task-bar-btn add" onclick="event.stopPropagation();openSubtaskModal('${t.id}')" title="新建子任务">➕</button>`:''}
+        </div>
+      </div>`;
+    }
+    if(tasksForDay.length>maxShow){
+      taskHtml+=`<div class="more-indicator">↕ 还有${tasksForDay.length-maxShow}条</div>`;
+    }
+    if(tasksForDay.length===0 && !isOtherMonth){
+      taskHtml='<div class="no-tasks" style="color:var(--text-tertiary);font-size:10px;text-align:center;padding:4px 0;opacity:0.5;">—</div>';
+    }
+
+    html+=`<div class="${cls.join(' ')}" data-date="${dateStr}" onclick="onCellClick('${dateStr}')">
+      <div class="cell-date-row">
+        <span class="cell-date">${dayNum}</span>
+        ${isToday?'<span class="today-dot"></span><span class="today-label">今天</span>':''}
+      </div>
+      <div class="cell-tasks">${taskHtml}</div>
+    </div>`;
+  }
+  grid.innerHTML=html;
+}
+
+// ============================================================
+// Detail Panel
+// ============================================================
+function renderDetailPanel(){
+  let scroll=document.getElementById('detail-scroll');
+  let title=document.getElementById('detail-panel-title');
+  let subtitle=document.getElementById('detail-panel-subtitle');
+
+  if(selectedTaskId){
+    let t=findTask(selectedTaskId);
+    if(!t){
+      selectedTaskId=null;
+      renderDetailPanel();
+      return;
+    }
+    let parentId=findTaskParentId(selectedTaskId);
+    let isSub=!!parentId;
+    let parentTitle=isSub?findTask(parentId).title:'';
+    title.textContent=isSub?'子任务详情':'任务详情';
+    subtitle.textContent=selectedDate;
+
+    let html=renderSingleTaskCard(t,isSub,parentId,parentTitle);
+    scroll.innerHTML=html;
+    scroll.scrollTop=0;
+  } else {
+    let tasksForDay=getTasksForDate(selectedDate);
+    title.textContent='任务详情';
+    subtitle.textContent=selectedDate+' · '+tasksForDay.length+'条任务';
+
+    if(tasksForDay.length===0){
+      scroll.innerHTML=`<div class="detail-empty"><div class="detail-empty-icon">📋</div><div>${selectedDate} 暂无任务</div><div style="font-size:12px;margin-top:4px">点击右上角"新建"按钮创建任务</div></div>`;
+    } else {
+      let html='';
+      for(let t of tasksForDay){
+        let isSub=t.isSub;
+        let isParent=!isSub&&t.subtasks&&t.subtasks.length>0;
+        html+=renderSingleTaskCard(t,isSub,t.parentId||null,isSub?t.parentTitle:'',isParent);
+      }
+      scroll.innerHTML=html;
+      scroll.scrollTop=0;
+    }
+  }
+}
+
+function renderSingleTaskCard(t,isSub,parentId,parentTitle,isParent){
+  let cardCls=isSub?'detail-task-card subtask-card':'detail-task-card';
+  let actionBtns=`<button class="detail-action-btn edit-btn" onclick="event.stopPropagation();openEditModal('${t.id}')" title="编辑">✏️</button>
+    <button class="detail-action-btn danger-btn" onclick="event.stopPropagation();openDeleteConfirm('${t.id}')" title="删除">❌</button>`;
+  if(isParent&&!isSub){
+    actionBtns+=`<button class="detail-action-btn add-btn" onclick="event.stopPropagation();openSubtaskModal('${t.id}')" title="新建子任务">➕</button>`;
+  }
+  let statusCls=STATUS_EN[t.status];
+  let parentInfo=isSub?`<div class="detail-field"><span class="detail-label">所属任务</span><span class="detail-value" style="color:var(--text-link)">${escHtml(parentTitle||'')}</span></div>`:'';
+
+  return `<div class="${cardCls}">
+    <div class="detail-field">
+      <span class="detail-label">标题</span>
+      <span class="detail-value title-row">
+        <span class="detail-title-text">${escHtml(t.title)}</span>
+        <span class="detail-actions">${actionBtns}</span>
+      </span>
+    </div>
+    <div class="detail-field"><span class="detail-label">开始日期</span><span class="detail-value">${t.start_date}</span></div>
+    <div class="detail-field"><span class="detail-label">截止日期</span><span class="detail-value">${t.end_date}</span></div>
+    <div class="detail-field"><span class="detail-label">状态</span><span class="detail-value"><span class="status-badge ${statusCls}">${t.status}</span></span></div>
+    <div class="detail-field"><span class="detail-label">背景</span><span class="detail-value">${escHtml(t.background||'—')}</span></div>
+    ${parentInfo}
+  </div>`;
+}
+
+// ============================================================
+// Events
+// ============================================================
+function onCellClick(dateStr){
+  selectedDate=dateStr;
+  selectedTaskId=null;
+  selectedSubtaskId=null;
+  renderCalendar();
+  renderDetailPanel();
+  closeSearchDropdown();
+}
+function onTaskBarClick(taskId,dateStr){
+  selectedDate=dateStr;
+  selectedTaskId=taskId;
+  selectedSubtaskId=null;
+  let t=findTask(taskId);
+  if(!t) return;
+  if(findTaskParentId(taskId)){
+    selectedSubtaskId=taskId;
+    selectedTaskId=taskId;
+  }
+  // Navigate to the month of the task's start_date
+  let sd=t.start_date;
+  if(sd){
+    let parts=sd.split('-');
+    currentYear=parseInt(parts[0]);
+    currentMonth=parseInt(parts[1]);
+  }
+  renderCalendar();
+  renderDetailPanel();
+  closeSearchDropdown();
+}
+
+// ============================================================
+// Search
+// ============================================================
+function doSearch(){
+  let q=document.getElementById('search-input').value.trim();
+  let dd=document.getElementById('search-dropdown');
+  if(q.length<2){
+    dd.classList.remove('active');
+    dd.innerHTML='';
+    return;
+  }
+  let lower=q.toLowerCase();
+  let all=getAllVisibleFlat();
+  let results=all.filter(t=>
+    t.title.toLowerCase().includes(lower) ||
+    (t.background&&t.background.toLowerCase().includes(lower))
+  );
+  let html='';
+  for(let r of results.slice(0,50)){
+    let bg=r.background||'';
+    if(bg.length>50) bg=bg.substring(0,50)+'...';
+    html+=`<div class="search-result-item" onclick="onSearchResultClick('${r.id}','${r.start_date}')">
+      <div class="sr-title"><span>${escHtml(r.title)}</span><span class="sr-date">${r.start_date}</span></div>
+      <div class="sr-bg">${escHtml(bg)}</div>
+    </div>`;
+  }
+  html+=`<div id="search-total">共 ${results.length} 条结果</div>`;
+  dd.innerHTML=html;
+  dd.classList.add('active');
+}
+function onSearchResultClick(taskId,startDate){
+  selectedTaskId=taskId;
+  selectedDate=startDate;
+  let sd=startDate.split('-');
+  currentYear=parseInt(sd[0]);
+  currentMonth=parseInt(sd[1]);
+  renderCalendar();
+  renderDetailPanel();
+  closeSearchDropdown();
+  document.getElementById('search-input').value='';
+}
+function closeSearchDropdown(){
+  document.getElementById('search-dropdown').classList.remove('active');
+}
+
+// ============================================================
+// Month Navigation
+// ============================================================
+function goToPrevMonth(){
+  currentMonth--;
+  if(currentMonth<1){currentMonth=12;currentYear--;}
+  renderCalendar();
+  renderDetailPanel();
+  closeAllPickers();
+}
+function goToNextMonth(){
+  currentMonth++;
+  if(currentMonth>12){currentMonth=1;currentYear++;}
+  renderCalendar();
+  renderDetailPanel();
+  closeAllPickers();
+}
+function updateNavArrowState(){
+  let minY=2006,maxY=2046;
+  let prevBtn=document.getElementById('prev-month');
+  let nextBtn=document.getElementById('next-month');
+  let atMin=(currentYear===minY&&currentMonth===1);
+  let atMax=(currentYear===maxY&&currentMonth===12);
+  prevBtn.classList.toggle('disabled',atMin);
+  nextBtn.classList.toggle('disabled',atMax);
+}
+
+function buildMonthPicker(){
+  let dd=document.getElementById('month-dropdown');
+  let html='<div class="month-grid">';
+  for(let i=1;i<=12;i++){
+    html+=`<div class="month-option${i===currentMonth?' current':''}" onclick="selectMonth(${i})">${i}月</div>`;
+  }
+  html+='</div>';
+  dd.innerHTML=html;
+}
+function selectMonth(m){
+  currentMonth=m;
+  renderCalendar();
+  renderDetailPanel();
+  closeAllPickers();
+}
+function buildYearPicker(){
+  let dd=document.getElementById('year-dropdown');
+  let baseYear=2006+yearPickerPage*5;
+  let html=`<div class="year-picker-nav">
+    <button onclick="yearPickerPage--;buildYearPicker();event.stopPropagation()" ${baseYear<=2006?'disabled':''}>◀</button>
+    <span class="year-range-label">${baseYear} — ${baseYear+4}</span>
+    <button onclick="yearPickerPage++;buildYearPicker();event.stopPropagation()" ${baseYear+5>2046?'disabled':''}>▶</button>
+  </div>`;
+  html+='<div class="year-grid">';
+  for(let i=0;i<5;i++){
+    let y=baseYear+i;
+    if(y>2046) break;
+    html+=`<div class="year-option${y===currentYear?' current':''}" onclick="selectYear(${y})">${y}</div>`;
+  }
+  html+='</div>';
+  dd.innerHTML=html;
+}
+function selectYear(y){
+  currentYear=y;
+  renderCalendar();
+  renderDetailPanel();
+  closeAllPickers();
+}
+
+function toggleMonthPicker(){
+  let dd=document.getElementById('month-dropdown');
+  let yd=document.getElementById('year-dropdown');
+  yd.classList.remove('active');
+  dd.classList.toggle('active');
+  if(dd.classList.contains('active')) buildMonthPicker();
+}
+function toggleYearPicker(){
+  let dd=document.getElementById('year-dropdown');
+  let md=document.getElementById('month-dropdown');
+  md.classList.remove('active');
+  dd.classList.toggle('active');
+  if(dd.classList.contains('active')) buildYearPicker();
+}
+function closeAllPickers(){
+  document.getElementById('month-dropdown').classList.remove('active');
+  document.getElementById('year-dropdown').classList.remove('active');
+}
+
+// ============================================================
+// Modal — Shared
+// ============================================================
+let modalMode=null; // 'create'|'edit'|'delete'|'subtask'
+let modalTargetId=null;
+let modalParentId=null;
+
+function openModal(mode,targetId,parentId){
+  modalMode=mode;
+  modalTargetId=targetId||null;
+  modalParentId=parentId||null;
+  let overlay=document.getElementById('modal-overlay');
+  let modal=document.getElementById('modal');
+  let titleEl=document.getElementById('modal-title');
+  let parentInfo=document.getElementById('modal-parent-info');
+  let errorEl=document.getElementById('modal-error');
+  let footer=document.getElementById('modal-footer');
+  errorEl.classList.remove('active');
+  errorEl.textContent='';
+
+  modal.classList.remove('subtask-modal');
+  if(mode==='create'){
+    titleEl.textContent='新建任务';
+    parentInfo.textContent='';
+    document.getElementById('field-title').value='';
+    document.getElementById('field-start').value=selectedDate;
+    document.getElementById('field-end').value=selectedDate;
+    document.getElementById('field-bg').value='';
+    setStatusRadio(STATUS.PENDING);
+    footer.innerHTML=`<button class="btn btn-secondary" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="submitModal()">保存</button>`;
+  } else if(mode==='subtask'){
+    titleEl.textContent='新建子任务';
+    let pt=findTask(modalParentId);
+    parentInfo.textContent='所属任务：'+(pt?pt.title:'');
+    modal.classList.add('subtask-modal');
+    document.getElementById('field-title').value='';
+    document.getElementById('field-start').value=selectedDate;
+    document.getElementById('field-end').value=selectedDate;
+    document.getElementById('field-bg').value='';
+    setStatusRadio(STATUS.PENDING);
+    footer.innerHTML=`<button class="btn btn-secondary" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="submitModal()">保存</button>`;
+  } else if(mode==='edit'){
+    let t=findTask(modalTargetId);
+    if(!t) return;
+    let isSub=!!findTaskParentId(modalTargetId);
+    titleEl.textContent=isSub?'编辑子任务':'编辑任务';
+    parentInfo.textContent=isSub?'所属任务：'+(findTask(findTaskParentId(modalTargetId))||{}).title||'':'';
+    if(isSub) modal.classList.add('subtask-modal');
+    document.getElementById('field-title').value=t.title;
+    document.getElementById('field-start').value=t.start_date;
+    document.getElementById('field-end').value=t.end_date;
+    document.getElementById('field-bg').value=t.background||'';
+    setStatusRadio(t.status);
+    footer.innerHTML=`<button class="btn btn-secondary" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="submitModal()">保存</button>`;
+  } else if(mode==='delete'){
+    let t=findTask(modalTargetId);
+    if(!t) return;
+    let subCount=(t.subtasks?t.subtasks.filter(s=>!s.deleted).length:0)||0;
+    titleEl.textContent='确认删除';
+    parentInfo.textContent='';
+    let bodyEl=overlay.querySelector('.modal-body');
+    bodyEl.innerHTML=`<div class="delete-confirm-text">确认删除任务 "<strong>${escHtml(t.title)}</strong>"？</div>
+      ${subCount>0?`<div class="delete-sub-hint">⚠ 包含 ${subCount} 条子任务，将一并删除</div>`:''}`;
+    footer.innerHTML=`<button class="btn btn-secondary" onclick="closeModal()">取消</button><button class="btn btn-danger" onclick="submitModal()">确认删除</button>`;
+  }
+  overlay.classList.add('active');
+}
+function openCreateModal(){
+  openModal('create');
+}
+function openSubtaskModal(parentId){
+  openModal('subtask',null,parentId);
+}
+function openEditModal(taskId){
+  openModal('edit',taskId);
+}
+function openDeleteConfirm(taskId){
+  openModal('delete',taskId);
+}
+function closeModal(){
+  document.getElementById('modal-overlay').classList.remove('active');
+  // Restore modal body
+  let body=document.getElementById('modal-overlay').querySelector('.modal-body');
+  body.innerHTML=body.innerHTML; // reset
+  modalMode=null;
+  modalTargetId=null;
+  modalParentId=null;
+  // Rebuild the standard form in modal body
+  rebuildModalForm();
+}
+function rebuildModalForm(){
+  let body=document.getElementById('modal-overlay').querySelector('.modal-body');
+  if(body.querySelector('#field-title')) return; // already has form
+  body.innerHTML=`
+    <div class="modal-field"><label>标题 <span style="color:var(--color-danger)">*</span></label><input type="text" id="field-title" maxlength="50" placeholder="输入任务标题"></div>
+    <div class="modal-field"><label>开始日期</label><input type="date" id="field-start"></div>
+    <div class="modal-field"><label>截止日期</label><input type="date" id="field-end"></div>
+    <div class="modal-field"><label>状态</label><div class="status-radio-group" id="field-status"></div></div>
+    <div class="modal-field"><label>背景</label><textarea id="field-bg" maxlength="500" placeholder="输入任务背景描述（不超过500字）"></textarea></div>
+    <div class="modal-error" id="modal-error"></div>`;
+  setStatusRadio(STATUS.PENDING);
+}
+
+function setStatusRadio(status){
+  let group=document.getElementById('field-status');
+  if(!group) return;
+  let statuses=[STATUS.PENDING,STATUS.ACTIVE,STATUS.DONE,STATUS.CANCELLED];
+  group.innerHTML=statuses.map(s=>
+    `<span class="status-radio${s===status?' selected':''}" onclick="setStatusRadio('${s}')">${s}</span>`
+  ).join('');
+}
+function getSelectedStatus(){
+  let sel=document.querySelector('#field-status .status-radio.selected');
+  return sel?sel.textContent.trim():STATUS.PENDING;
+}
+
+function submitModal(){
+  let errorEl=document.getElementById('modal-error');
+  errorEl.classList.remove('active');
+
+  if(modalMode==='delete'){
+    if(modalTargetId){
+      let t=findTask(modalTargetId);
+      if(!t) return;
+      deletedTaskCache=JSON.parse(JSON.stringify(t));
+      // Delete
+      if(findTaskParentId(modalTargetId)){
+        // It's a subtask
+        let pt=findTask(findTaskParentId(modalTargetId));
+        if(pt&&pt.subtasks){
+          let st=pt.subtasks.find(s=>s.id===modalTargetId);
+          if(st) st.deleted=true;
+        }
+      } else {
+        t.deleted=true;
+        if(t.subtasks){ for(let s of t.subtasks) s.deleted=true; }
+      }
+      let taskTitle=t.title;
+      closeModal();
+      selectedTaskId=null;
+      renderCalendar();
+      renderDetailPanel();
+      showUndoToast(taskTitle);
+    }
+    return;
+  }
+
+  // create / edit / subtask
+  let title=document.getElementById('field-title').value.trim();
+  let start=document.getElementById('field-start').value;
+  let end=document.getElementById('field-end').value;
+  let status=getSelectedStatus();
+  let bg=document.getElementById('field-bg').value.trim();
+
+  if(!title){
+    errorEl.textContent='标题不能为空';
+    errorEl.classList.add('active');
+    return;
+  }
+  if(!start) start=selectedDate;
+  if(!end) end=start;
+  if(end<start){
+    errorEl.textContent='截止日期不能早于开始日期';
+    errorEl.classList.add('active');
+    return;
+  }
+
+  if(modalMode==='create'){
+    let newTask={
+      id:'t'+Date.now(),
+      title,start_date:start,end_date:end,status,background:bg,
+      created_at:new Date().toISOString(),deleted:false,subtasks:[],
+      history:[{version:1,title,start_date:start,end_date:end,status,background:bg,changed_at:new Date().toISOString()}]
+    };
+    tasks.push(newTask);
+    showToast('任务 "'+title+'" 创建成功');
+    closeModal();
+    // Auto-select the new task's date
+    selectedDate=start;
+    selectedTaskId=newTask.id;
+    let sd=start.split('-');
+    currentYear=parseInt(sd[0]);
+    currentMonth=parseInt(sd[1]);
+    renderCalendar();
+    renderDetailPanel();
+  } else if(modalMode==='subtask'){
+    let pt=findTask(modalParentId);
+    if(!pt) return;
+    let newSub={
+      id:modalParentId+'s'+Date.now(),
+      title,start_date:start,end_date:end,status,background:bg,
+      created_at:new Date().toISOString(),deleted:false,
+      history:[{version:1,title,start_date:start,end_date:end,status,background:bg,changed_at:new Date().toISOString()}]
+    };
+    if(!pt.subtasks) pt.subtasks=[];
+    pt.subtasks.push(newSub);
+    showToast('子任务 "'+title+'" 创建成功');
+    closeModal();
+    selectedDate=start;
+    selectedTaskId=newSub.id;
+    let sd=start.split('-');
+    currentYear=parseInt(sd[0]);
+    currentMonth=parseInt(sd[1]);
+    renderCalendar();
+    renderDetailPanel();
+  } else if(modalMode==='edit'){
+    let t=findTask(modalTargetId);
+    if(!t) return;
+    let oldTitle=t.title;
+    t.title=title;
+    t.start_date=start;
+    t.end_date=end;
+    t.status=status;
+    t.background=bg;
+    t.updated_at=new Date().toISOString();
+    showToast('任务 "'+oldTitle+'" 已更新');
+    closeModal();
+    selectedDate=start;
+    let sd=start.split('-');
+    currentYear=parseInt(sd[0]);
+    currentMonth=parseInt(sd[1]);
+    renderCalendar();
+    renderDetailPanel();
+  }
+}
+
+// ============================================================
+// Toast & Undo
+// ============================================================
+function showToast(msg){
+  let container=document.getElementById('toast-container');
+  let toast=document.createElement('div');
+  toast.className='toast';
+  toast.textContent=msg;
+  container.appendChild(toast);
+  setTimeout(()=>{ if(toast.parentNode) toast.remove(); },5000);
+}
+function showUndoToast(taskTitle){
+  let container=document.getElementById('toast-container');
+  let toast=document.createElement('div');
+  toast.className='toast';
+  toast.innerHTML=escHtml('"'+taskTitle+'"')+' 已删除 <button class="toast-undo" onclick="undoDelete()">撤销</button>';
+  container.appendChild(toast);
+  setTimeout(()=>{ if(toast.parentNode) toast.remove(); },5000);
+}
+function undoDelete(){
+  if(!deletedTaskCache) return;
+  let t=deletedTaskCache;
+  // Find and restore
+  if(findTaskParentId(t.id)){
+    let pt=findTask(findTaskParentId(t.id));
+    if(pt&&pt.subtasks){
+      let st=pt.subtasks.find(s=>s.id===t.id);
+      if(st) st.deleted=false;
+    }
+  } else {
+    let existing=findTask(t.id);
+    if(existing){
+      existing.deleted=false;
+      if(t.subtasks){
+        for(let s of t.subtasks){
+          let es=existing.subtasks?existing.subtasks.find(ss=>ss.id===s.id):null;
+          if(es) es.deleted=false;
+        }
+      }
+    } else {
+      t.deleted=false;
+      tasks.push(t);
+    }
+  }
+  showToast('已撤销删除');
+  deletedTaskCache=null;
+  renderCalendar();
+  renderDetailPanel();
+}
+
+// ============================================================
+// Keyboard Shortcuts
+// ============================================================
+document.addEventListener('keydown',function(e){
+  // Only when modal is not open
+  let modalOpen=document.getElementById('modal-overlay').classList.contains('active');
+  if(modalOpen){
+    if(e.key==='Escape'){
+      closeModal();
+    }
+    return;
+  }
+  // Close any pickers on Escape
+  if(e.key==='Escape'){
+    closeAllPickers();
+    closeSearchDropdown();
+    return;
+  }
+  if(e.ctrlKey&&e.key==='n'){
+    e.preventDefault();
+    openCreateModal();
+    return;
+  }
+  if(e.ctrlKey&&e.key==='f'){
+    e.preventDefault();
+    document.getElementById('search-input').focus();
+    return;
+  }
+  if(e.key==='Delete'&&selectedTaskId){
+    e.preventDefault();
+    openDeleteConfirm(selectedTaskId);
+    return;
+  }
+  if(e.ctrlKey&&e.key==='e'&&selectedTaskId){
+    e.preventDefault();
+    openEditModal(selectedTaskId);
+    return;
+  }
+  if(e.key==='ArrowLeft'){
+    e.preventDefault();
+    goToPrevMonth();
+    return;
+  }
+  if(e.key==='ArrowRight'){
+    e.preventDefault();
+    goToNextMonth();
+    return;
+  }
+});
+
+// ============================================================
+// Event Bindings
+// ============================================================
+document.getElementById('theme-btn').addEventListener('click',toggleTheme);
+document.getElementById('search-btn').addEventListener('click',doSearch);
+document.getElementById('search-input').addEventListener('keydown',function(e){
+  if(e.key==='Enter') doSearch();
+});
+document.getElementById('search-input').addEventListener('input',function(){
+  if(this.value.trim().length>=2) doSearch();
+  else closeSearchDropdown();
+});
+document.getElementById('prev-month').addEventListener('click',goToPrevMonth);
+document.getElementById('next-month').addEventListener('click',goToNextMonth);
+document.getElementById('year-display').addEventListener('click',toggleYearPicker);
+document.getElementById('month-display').addEventListener('click',toggleMonthPicker);
+document.getElementById('new-task-btn').addEventListener('click',openCreateModal);
+document.getElementById('modal-close').addEventListener('click',closeModal);
+document.getElementById('modal-overlay').addEventListener('click',function(e){
+  if(e.target===this) closeModal();
+});
+
+// Close pickers when clicking outside
+document.addEventListener('click',function(e){
+  let mp=document.getElementById('month-picker-wrap');
+  let yp=document.getElementById('year-picker-wrap');
+  let sw=document.getElementById('search-wrap');
+  if(!mp.contains(e.target)) document.getElementById('month-dropdown').classList.remove('active');
+  if(!yp.contains(e.target)) document.getElementById('year-dropdown').classList.remove('active');
+  if(!sw.contains(e.target)) closeSearchDropdown();
+});
+
+// ============================================================
+// Helper
+// ============================================================
+function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ============================================================
+// Init
+// ============================================================
+renderCalendar();
+renderDetailPanel();
+
+</script>
+</body>
+</html>

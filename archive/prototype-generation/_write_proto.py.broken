@@ -1,0 +1,5 @@
+# Script to write prototype.html
+content = open(__file__, encoding="utf-8").read().split("# ===MAGIC==="")[1]
+with open("C:/Users/dongh/WorkBuddy/20260429224909/todo_manager/prototype.html", "w", encoding="utf-8") as f:
+    f.write(content)
+print("Written successfully")

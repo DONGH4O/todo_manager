@@ -1,0 +1,353 @@
+#!/usr/bin/env python3
+"""Generate the complete HTML prototype for Todo Manager D3 GUI.
+Usage: python generate_prototype.py
+Output: prototype.html in the same directory."""
+
+import json
+
+# ============================================================
+# Mock Data
+# ============================================================
+MOCK_TASKS = [
+    {"id":"t01","title":"完成Q2绩效评估","start_date":"2026-05-01","end_date":"2026-05-10","status":"in_progress","background":"收集各部门的绩效数据，整理汇总成统一报告，与各部门负责人确认评估结果。","parent_id":None,"created_at":"2026-05-01T08:00:00"},
+    {"id":"t02","title":"更新项目文档","start_date":"2026-05-01","end_date":"2026-05-03","status":"not_started","background":"根据最新版本的功能变更，更新API文档和用户手册。","parent_id":None,"created_at":"2026-05-01T09:30:00"},
+    {"id":"t03","title":"修复登录页BUG","start_date":"2026-05-01","end_date":"2026-05-01","status":"completed","background":"修复用户反馈的登录页密码错误提示不显示的问题，需要进行单元测试验证。","parent_id":None,"created_at":"2026-05-01T10:00:00"},
+    {"id":"t04","title":"周报撰写","start_date":"2026-05-02","end_date":"2026-05-02","status":"not_started","background":"整理本周工作进展，汇总遇到的问题和下周计划。","parent_id":None,"created_at":"2026-05-02T08:00:00"},
+    {"id":"t05","title":"Q2原型开发","start_date":"2026-05-01","end_date":"2026-05-15","status":"in_progress","background":"完成Q2产品的高保真原型设计，包括所有核心页面和交互流程，需要与设计团队紧密协作。","parent_id":None,"created_at":"2026-05-01T07:00:00"},
+    {"id":"t06","title":"代码审查","start_date":"2026-05-03","end_date":"2026-05-05","status":"not_started","background":"审查Q2新功能的代码质量，检查是否有潜在的安全漏洞和性能问题。","parent_id":None,"created_at":"2026-05-03T10:00:00"},
+    {"id":"t07","title":"发布v2.1版本","start_date":"2026-05-12","end_date":"2026-05-12","status":"not_started","background":"准备v2.1版本的发布包，更新版本号和更新日志，执行发布前检查清单。","parent_id":None,"created_at":"2026-05-12T09:00:00"},
+    {"id":"t08","title":"数据库优化","start_date":"2026-05-08","end_date":"2026-05-20","status":"in_progress","background":"优化慢查询性能，添加必要的索引，对关键表进行分区处理，提高数据库响应速度。","parent_id":None,"created_at":"2026-05-08T08:00:00"},
+    {"id":"t09","title":"团队站立会议","start_date":"2026-05-05","end_date":"2026-05-05","status":"completed","background":"每日团队站立会议，同步各成员工作进度和遇到的阻塞问题。","parent_id":None,"created_at":"2026-05-05T09:00:00"},
+    {"id":"t10","title":"用户调研","start_date":"2026-05-12","end_date":"2026-05-18","status":"not_started","background":"针对目标用户群体进行产品使用体验调研，收集反馈意见并整理成报告。","parent_id":None,"created_at":"2026-05-12T10:00:00"},
+    {"id":"t11","title":"API文档更新","start_date":"2026-05-15","end_date":"2026-05-20","status":"in_progress","background":"更新所有API接口文档，添加新增接口的说明和示例代码。","parent_id":None,"created_at":"2026-05-15T08:00:00"},
+    {"id":"t12","title":"性能测试","start_date":"2026-05-22","end_date":"2026-05-25","status":"not_started","background":"对系统进行全链路性能测试，包括压力测试和负载测试，生成测试报告。","parent_id":None,"created_at":"2026-05-22T08:00:00"},
+    {"id":"t13","title":"安全审计","start_date":"2026-05-01","end_date":"2026-05-30","status":"in_progress","background":"完成年度安全审计工作，包括代码审查、渗透测试和安全漏洞修复。","parent_id":None,"created_at":"2026-05-01T08:30:00"},
+    {"id":"t14","title":"已取消的开发任务","start_date":"2026-05-06","end_date":"2026-05-06","status":"cancelled","background":"由于产品方向调整，该项目已取消开发。","parent_id":None,"created_at":"2026-05-06T08:00:00"},
+    {"id":"st01","title":"收集各部门上月数据","start_date":"2026-05-01","end_date":"2026-05-03","status":"completed","background":"从各部门获取上月的绩效数据，包括销售、研发、运营等部门的KPI完成情况。","parent_id":"t01","created_at":"2026-05-01T08:15:00"},
+    {"id":"st02","title":"撰写评估报告初稿","start_date":"2026-05-04","end_date":"2026-05-08","status":"in_progress","background":"基于收集到的数据，撰写绩效评估报告的初稿版本。","parent_id":"t01","created_at":"2026-05-04T09:00:00"},
+    {"id":"st03","title":"绘制低保真线框图","start_date":"2026-05-01","end_date":"2026-05-05","status":"completed","background":"使用设计工具绘制产品核心页面的低保真线框图，明确页面布局和信息架构。","parent_id":"t05","created_at":"2026-05-01T07:30:00"},
+    {"id":"st04","title":"用户测试反馈收集","start_date":"2026-05-06","end_date":"2026-05-10","status":"in_progress","background":"组织用户测试，收集用户对低保真原型的反馈意见。","parent_id":"t05","created_at":"2026-05-06T08:30:00"},
+    {"id":"st05","title":"高保真原型开发","start_date":"2026-05-11","end_date":"2026-05-15","status":"not_started","background":"基于低保真原型和用户反馈，开发高保真交互原型。","parent_id":"t05","created_at":"2026-05-11T09:00:00"},
+    {"id":"st06","title":"分析慢查询日志","start_date":"2026-05-08","end_date":"2026-05-12","status":"completed","background":"分析数据库慢查询日志，找出性能瓶颈并制定优化方案。","parent_id":"t08","created_at":"2026-05-08T09:00:00"},
+    {"id":"st07","title":"审查认证模块","start_date":"2026-05-01","end_date":"2026-05-10","status":"completed","background":"审查系统认证模块的安全性和合规性，检查密码策略和会话管理。","parent_id":"t13","created_at":"2026-05-01T09:00:00"},
+    {"id":"st08","title":"检查数据加密","start_date":"2026-05-11","end_date":"2026-05-25","status":"in_progress","background":"检查系统在数据传输和存储过程中的加密实现，确保符合安全标准。","parent_id":"t13","created_at":"2026-05-11T08:00:00"},
+]
+
+
+# ============================================================
+# CSS Generation
+# ============================================================
+def generate_css():
+    """Generate the complete CSS stylesheet."""
+    return r'''/* ============================================================
+   CSS Variables - Light & Dark Themes
+   ============================================================ */
+:root{--base-font-size:14px;--radius:6px;--radius-sm:4px;--shadow:0 2px 8px rgba(0,0,0,0.12);--shadow-lg:0 4px 20px rgba(0,0,0,0.18);--transition:0.2s ease}
+
+[data-theme="light"]{--bg:#F5F5F5;--bg-panel:#FFFFFF;--bg-calendar:#FFFFFF;--bg-cell:#FAFAFA;--bg-cell-today:#EBF5FF;--bg-detail:#FAFAFA;--text:#1F2937;--text-secondary:#6B7280;--text-muted:#9CA3AF;--border:#E5E7EB;--border-subtle:#F3F4F6;--primary:#3B82F6;--primary-light:#DBEAFE;--primary-bg:#EFF6FF;--success:#10B981;--success-light:#D1FAE5;--success-bg:#ECFDF5;--danger:#EF4444;--danger-light:#FEE2E2;--gray-state:#9CA3AF;--gray-state-light:#E5E7EB;--gray-state-bg:#F9FAFB;--hover-bg:#F3F4F6;--modal-bg:#FFFFFF;--modal-overlay:rgba(0,0,0,0.4);--scrollbar-thumb:#D1D5DB;--scrollbar-track:transparent;--today-dot:#3B82F6;--header-bg:#FFFFFF}
+
+[data-theme="dark"]{--bg:#111827;--bg-panel:#1F2937;--bg-calendar:#1F2937;--bg-cell:#1F2937;--bg-cell-today:#1E3A5F;--bg-detail:#1F2937;--text:#F9FAFB;--text-secondary:#D1D5DB;--text-muted:#6B7280;--border:#374151;--border-subtle:#2D3748;--primary:#60A5FA;--primary-light:#1E3A5F;--primary-bg:#172554;--success:#34D399;--success-light:#064E3B;--success-bg:#022C22;--danger:#F87171;--danger-light:#7F1D1D;--gray-state:#6B7280;--gray-state-light:#374151;--gray-state-bg:#1F2937;--hover-bg:#374151;--modal-bg:#1F2937;--modal-overlay:rgba(0,0,0,0.6);--scrollbar-thumb:#4B5563;--scrollbar-track:transparent;--today-dot:#60A5FA;--header-bg:#1F2937}
+
+html{font-size:var(--base-font-size)}
+@media(min-width:2560px){html{font-size:16px}}
+@media(min-width:3840px){html{font-size:18px}}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;font-size:1rem;color:var(--text);background:var(--bg);height:100vh;overflow:hidden;display:flex;flex-direction:column}
+button{cursor:pointer;font-family:inherit;font-size:inherit;border:none;background:none;color:inherit}
+input,textarea,select{font-family:inherit;font-size:inherit;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);outline:none}
+input:focus,textarea:focus{border-color:var(--primary)}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:var(--scrollbar-track)}
+::-webkit-scrollbar-thumb{background:var(--scrollbar-thumb);border-radius:3px}
+
+#top-bar{display:flex;align-items:center;gap:12px;padding:8px 16px;background:var(--header-bg);border-bottom:1px solid var(--border);flex-shrink:0}
+#theme-toggle{font-size:1.3rem;padding:4px 8px;border-radius:var(--radius);line-height:1;transition:background var(--transition)}
+#theme-toggle:hover{background:var(--hover-bg)}
+#search-container{flex:1;position:relative;display:flex;align-items:center}
+#search-input{flex:1;padding:6px 36px 6px 12px;border:1px solid var(--border);border-radius:var(--radius);transition:border-color var(--transition)}
+#search-input:focus{border-color:var(--primary)}
+#search-btn{position:absolute;right:0;z-index:1;font-size:1rem;padding:6px 10px;border-radius:0 var(--radius) var(--radius) 0;background:var(--primary);color:#fff}
+#search-btn:hover{opacity:0.9}
+
+#search-dropdown{display:none;position:absolute;top:100%;left:0;right:0;background:var(--modal-bg);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-lg);z-index:1000;max-height:360px;overflow-y:auto;margin-top:4px}
+#search-dropdown.active{display:block}
+.sr-item{padding:10px 14px;border-bottom:1px solid var(--border-subtle);cursor:pointer;transition:background var(--transition)}
+.sr-item:hover{background:var(--hover-bg)}
+.sr-title{font-weight:600;margin-bottom:2px}
+.sr-date{font-size:0.85rem;color:var(--text-muted);margin-left:8px}
+.sr-bg{font-size:0.85rem;color:var(--text-secondary);margin-top:2px}
+.sr-footer{padding:8px 14px;text-align:center;font-size:0.85rem;color:var(--text-muted)}
+
+#month-nav{display:flex;align-items:center;justify-content:center;gap:16px;padding:8px 16px;background:var(--header-bg);border-bottom:1px solid var(--border);flex-shrink:0;user-select:none}
+#month-nav .nav-btn{font-size:1.2rem;padding:4px 12px;border-radius:var(--radius);transition:background var(--transition)}
+#month-nav .nav-btn:hover{background:var(--hover-bg)}
+#month-nav .nav-btn.disabled{opacity:0.3;cursor:not-allowed;pointer-events:none}
+#year-display,#month-display{font-size:1.15rem;font-weight:600;padding:4px 10px;border-radius:var(--radius);cursor:pointer;transition:background var(--transition);position:relative}
+#year-display:hover,#month-display:hover{background:var(--hover-bg)}
+
+.month-picker{display:none;position:absolute;top:100%;left:50%;transform:translateX(-50%);background:var(--modal-bg);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-lg);z-index:1001;padding:8px;margin-top:4px;grid-template-columns:repeat(4,1fr);gap:4px}
+.month-picker.active{display:grid}
+.month-picker button{padding:6px 14px;border-radius:var(--radius-sm);font-size:0.9rem;transition:all var(--transition)}
+.month-picker button:hover{background:var(--primary-bg);color:var(--primary)}
+.month-picker button.cur{background:var(--primary);color:#fff}
+
+.year-picker{display:none;position:absolute;top:100%;left:50%;transform:translateX(-50%);background:var(--modal-bg);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-lg);z-index:1001;padding:8px;min-width:200px;margin-top:4px}
+.year-picker.active{display:block}
+.yr-rows{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
+.yr-rows button{padding:6px 10px;border-radius:var(--radius-sm);font-size:0.9rem;transition:all var(--transition)}
+.yr-rows button:hover{background:var(--primary-bg);color:var(--primary)}
+.yr-rows button.cur{background:var(--primary);color:#fff}
+.yr-nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;padding:0 4px}
+.yr-nav button{padding:2px 8px;font-size:1rem;border-radius:var(--radius-sm)}
+.yr-nav button:hover{background:var(--hover-bg)}
+.yr-range{font-size:0.85rem;color:var(--text-secondary)}
+
+#calendar-container{flex:6;display:flex;flex-direction:column;background:var(--bg-calendar);overflow:hidden;min-height:0}
+#calendar-header{display:grid;grid-template-columns:repeat(7,1fr);border-bottom:1px solid var(--border);flex-shrink:0}
+.day-name{text-align:center;padding:8px 0;font-weight:600;font-size:0.9rem;color:var(--text-secondary)}
+.day-name.weekend{color:var(--danger);opacity:0.8}
+
+#calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);grid-template-rows:repeat(5,1fr);flex:1;min-height:0}
+.cell{border-right:1px solid var(--border-subtle);border-bottom:1px solid var(--border-subtle);padding:4px;display:flex;flex-direction:column;min-height:0;cursor:pointer;transition:background var(--transition);position:relative}
+.cell:nth-child(7n){border-right:none}
+.cell:hover{background:var(--hover-bg)}
+.cell.other-month .cell-date{color:var(--text-muted)}
+.cell.highlight{background:var(--primary-light)!important}
+.cell-date{font-size:0.9rem;font-weight:600;padding:2px 4px;flex-shrink:0;display:flex;align-items:center;gap:4px}
+.today-dot{width:8px;height:8px;border-radius:50%;background:var(--today-dot);flex-shrink:0}
+.today-label{font-size:0.7rem;color:var(--today-dot);font-weight:400}
+.cell-tasks{flex:1;overflow-y:auto;min-height:0;display:flex;flex-direction:column;gap:2px;padding-top:2px}
+
+.task-bar{font-size:0.78rem;padding:3px 6px;border-radius:3px;border-left:3px solid;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:relative;display:flex;align-items:center;gap:4px;transition:all var(--transition);flex-shrink:0;user-select:none}
+.task-bar:hover{filter:brightness(0.9)}
+.tb-title{flex:1;overflow:hidden;text-overflow:ellipsis}
+.task-bar.status-not_started{border-left-color:var(--gray-state);background:var(--gray-state-bg)}
+.task-bar.status-in_progress{border-left-color:var(--primary);background:var(--primary-bg)}
+.task-bar.status-completed{border-left-color:var(--success);background:var(--success-bg)}
+.task-bar.status-cancelled{border-left-color:var(--gray-state);background:var(--gray-state-bg);text-decoration:line-through}
+.task-bar.subtask{margin-left:14px;font-style:italic;border-left-style:dashed;opacity:0.92}
+.task-bar.subtask::before{content:"\2514\2500";position:absolute;left:-14px;color:var(--text-muted);font-style:normal;font-size:0.7rem}
+.task-bar .tb-actions{display:none;gap:2px;flex-shrink:0}
+.task-bar:hover .tb-actions{display:flex}
+.task-bar .tb-actions button{width:20px;height:20px;font-size:0.7rem;border-radius:3px;display:flex;align-items:center;justify-content:center;line-height:1;transition:background var(--transition)}
+.task-bar .tb-actions button:hover{background:var(--hover-bg)}
+.task-bar .tb-actions .btn-del{color:var(--danger)}
+.task-bar .tb-actions .btn-edit{color:var(--primary)}
+.task-bar .tb-actions .btn-add{color:var(--success)}
+.task-bar.selected{outline:2px solid var(--primary);outline-offset:-1px;z-index:1}
+
+#detail-panel{flex:4;background:var(--bg-detail);border-top:2px solid var(--border);display:flex;flex-direction:column;min-height:0;overflow:hidden}
+#detail-header{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid var(--border-subtle);flex-shrink:0}
+#detail-title{font-weight:600;font-size:1rem}
+#btn-new-task{background:var(--danger);color:#fff;padding:6px 18px;border-radius:var(--radius);font-size:0.9rem;font-weight:500;transition:opacity var(--transition)}
+#btn-new-task:hover{opacity:0.9}
+#detail-content{flex:1;overflow-y:auto;padding:12px 16px;min-height:0}
+
+.detail-task-card{background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:10px}
+.detail-task-card.subtask{margin-left:24px;border-left:2px dashed var(--border);background:var(--bg)}
+.detail-task-card.subtask .subtask-parent{display:block;font-size:0.78rem;color:var(--text-muted);margin-bottom:6px}
+.detail-card-header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.detail-card-title{font-weight:600;flex:1}
+.dc-actions{display:flex;gap:4px}
+.dc-actions button{width:24px;height:24px;font-size:0.8rem;border-radius:4px;display:flex;align-items:center;justify-content:center;transition:background var(--transition)}
+.dc-actions button:hover{background:var(--hover-bg)}
+.dc-actions .btn-del{color:var(--danger)}
+.dc-actions .btn-edit{color:var(--primary)}
+.dc-actions .btn-add{color:var(--success)}
+.detail-fields{font-size:0.88rem}
+.df-row{display:flex;padding:3px 0;gap:8px}
+.df-label{color:var(--text-muted);min-width:70px;flex-shrink:0}
+.df-value{color:var(--text)}
+
+#detail-multi{display:none}
+#detail-single{display:none}
+
+.modal-overlay{display:none;position:fixed;inset:0;background:var(--modal-overlay);z-index:2000;align-items:center;justify-content:center}
+.modal-overlay.active{display:flex}
+.modal{background:var(--modal-bg);border-radius:var(--radius);box-shadow:var(--shadow-lg);width:450px;max-width:92vw;max-height:88vh;overflow-y:auto}
+.modal.subtask-modal{background:var(--bg)}
+.modal-header{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border);font-weight:600;font-size:1.05rem;position:sticky;top:0;background:var(--modal-bg)}
+.modal-header .close-btn{font-size:1.3rem;padding:2px 8px;border-radius:var(--radius-sm);line-height:1;transition:background var(--transition)}
+.modal-header .close-btn:hover{background:var(--hover-bg)}
+.modal-body{padding:18px}
+.modal-footer{display:flex;justify-content:flex-end;gap:10px;padding:12px 18px;border-top:1px solid var(--border);position:sticky;bottom:0;background:var(--modal-bg)}
+
+.form-group{margin-bottom:14px}
+.form-group>label{display:block;font-size:0.9rem;margin-bottom:4px;color:var(--text-secondary)}
+.form-group input[type="text"],.form-group input[type="date"],.form-group textarea,.form-group select{width:100%;padding:8px 10px}
+.form-group textarea{min-height:80px;resize:vertical}
+.radio-group{display:flex;gap:12px;flex-wrap:wrap}
+.radio-group label{display:flex;align-items:center;gap:4px;cursor:pointer;font-size:0.88rem;color:var(--text)}
+.error-msg{color:var(--danger);font-size:0.8rem;margin-top:2px;display:none}
+
+.btn{padding:8px 20px;border-radius:var(--radius);font-size:0.9rem;font-weight:500;transition:all var(--transition)}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{opacity:0.9}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-danger:hover{opacity:0.9}
+.btn-cancel{background:var(--hover-bg);color:var(--text)}
+.btn-cancel:hover{background:var(--border)}
+
+.modal-subtitle{font-size:0.85rem;color:var(--text-muted);margin-bottom:14px;padding:6px 10px;background:var(--bg);border-radius:var(--radius-sm)}
+.delete-warning{color:var(--danger);font-size:0.85rem;margin-top:8px;padding:6px 10px;background:var(--danger-light);border-radius:var(--radius-sm)}
+
+#toast{display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--modal-bg);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-lg);padding:10px 20px;font-size:0.9rem;z-index:3000;align-items:center;gap:8px}
+#toast.active{display:flex}
+.undo-link{color:var(--primary);cursor:pointer;font-weight:500;text-decoration:none}
+.undo-link:hover{text-decoration:underline}
+
+.empty-state{text-align:center;color:var(--text-muted);padding:32px 16px;font-size:0.9rem}
+
+.status-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:0.78rem}
+.status-badge.not_started{background:var(--gray-state-light);color:var(--gray-state)}
+.status-badge.in_progress{background:var(--primary-light);color:var(--primary)}
+.status-badge.completed{background:var(--success-light);color:var(--success)}
+.status-badge.cancelled{background:var(--gray-state-light);color:var(--gray-state);text-decoration:line-through}
+'''
+
+
+# ============================================================
+# HTML Structure Generation
+# ============================================================
+def generate_html_structure():
+    """Generate the HTML body structure."""
+    return '''
+<div id="top-bar">
+  <button id="theme-toggle" title="切换明暗主题">🌙</button>
+  <div id="search-container">
+    <input type="text" id="search-input" placeholder="搜索任务..." />
+    <button id="search-btn" title="搜索">🔍</button>
+    <div id="search-dropdown"></div>
+  </div>
+</div>
+
+<div id="month-nav">
+  <button class="nav-btn" id="btn-prev-month" title="上一月">◀</button>
+  <span id="year-display"><span id="year-text">2026</span>年
+    <div class="year-picker" id="year-picker"><div class="yr-nav"></div><div class="yr-rows"></div></div>
+  </span>
+  <span id="month-display"><span id="month-text">5</span>月
+    <div class="month-picker" id="month-picker"></div>
+  </span>
+  <button class="nav-btn" id="btn-next-month" title="下一月">▶</button>
+</div>
+
+<div id="calendar-container">
+  <div id="calendar-header">
+    <div class="day-name">一</div><div class="day-name">二</div><div class="day-name">三</div>
+    <div class="day-name">四</div><div class="day-name">五</div>
+    <div class="day-name weekend">六</div><div class="day-name weekend">日</div>
+  </div>
+  <div id="calendar-grid"></div>
+</div>
+
+<div id="detail-panel">
+  <div id="detail-header">
+    <span id="detail-title">2026年5月1日 — 全部任务</span>
+    <button id="btn-new-task">新建</button>
+  </div>
+  <div id="detail-content">
+    <div id="detail-multi"></div>
+    <div id="detail-single"></div>
+  </div>
+</div>
+
+<!-- Modals -->
+<div class="modal-overlay" id="modal-task">
+  <div class="modal" id="modal-task-inner">
+    <div class="modal-header">
+      <span id="modal-task-title">新建任务</span>
+      <button class="close-btn" onclick="closeModal('task')">✕</button>
+    </div>
+    <div class="modal-body" id="modal-task-body"></div>
+    <div class="modal-footer" id="modal-task-footer"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-delete">
+  <div class="modal">
+    <div class="modal-header">
+      <span>确认删除</span>
+      <button class="close-btn" onclick="closeModal('delete')">✕</button>
+    </div>
+    <div class="modal-body" id="modal-delete-body"></div>
+    <div class="modal-footer" id="modal-delete-footer"></div>
+  </div>
+</div>
+
+<div id="toast"><span id="toast-msg"></span><a class="undo-link" id="toast-undo">撤销</a></div>
+'''
+
+
+# ============================================================
+# JavaScript Generation
+# ============================================================
+def generate_javascript():
+    """Generate the complete JavaScript code."""
+    return r'''
+<script>
+// ============================================================
+// Mock Task Data
+// ============================================================
+const MOCK_TASKS = ''' + json.dumps(MOCK_TASKS, ensure_ascii=False) + r''';
+
+let tasks = JSON.parse(JSON.stringify(MOCK_TASKS)); // Deep copy
+let currentYear = 2026;
+let currentMonth = 5; // 1-indexed
+let selectedTaskId = null;
+let selectedDate = '2026-05-01';
+let detailMode = 'day'; // 'day' | 'single'
+let deletedTask = null;
+let toastTimer = null;
+let yearPickerPage = 0; // Page offset for year picker (each page = 5 years)
+const YEARS_PER_PAGE = 5;
+const MIN_YEAR = 2006;
+const MAX_YEAR = 2046;
+const CHINESE_MONTHS = ['1','2','3','4','5','6','7','8','9','10','11','12'];
+const CHINESE_WEEKDAYS = ['一','二','三','四','五','六','日'];
+
+// ============================================================
+// Theme Management
+// ============================================================
+let themeManual = localStorage.getItem('todo-theme-manual') === 'true';
+let themeDark = localStorage.getItem('todo-theme-dark') === 'true';
+
+if (!themeManual) {
+  themeDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+applyTheme();
+
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+  if (!themeManual) { themeDark = e.matches; applyTheme(); }
+});
+
+function applyTheme() {
+  document.documentElement.setAttribute('data-theme', themeDark ? 'dark' : 'light');
+  document.getElementById('theme-toggle').textContent = themeDark ? '☀️' : '🌙';
+  localStorage.setItem('todo-theme-dark', themeDark.toString());
+}
+
+document.getElementById('theme-toggle').addEventListener('click', () => {
+  themeDark = !themeDark;
+  themeManual = true;
+  localStorage.setItem('todo-theme-manual', 'true');
+  applyTheme();
+});
+
+document.getElementById('theme-toggle').addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+  themeManual = false;
+  localStorage.setItem('todo-theme-manual', 'false');
+  themeDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  applyTheme();
+});
+
+// ============================================================
+// Calendar Helpers
+// ============================================================
+function daysInMonth(year, month) {
+  return new Date(year, month, 0).getDate();
+}
+
+function get

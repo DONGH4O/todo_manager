@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "todo-manager"
+version = "0.1.0"
+description = "Local CLI and desktop todo manager"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "PySide6>=6.7",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-qt>=4.4",
+    "pyinstaller>=6.0",
+]
+
+[project.scripts]
+todo = "todo_manager.cli.main:main"
+todo-gui = "todo_manager.gui.main:main"
+
+[tool.setuptools]
+packages = [
+    "todo_manager",
+    "todo_manager.engine",
+    "todo_manager.cli",
+    "todo_manager.gui",
+    "todo_manager.gui.widgets",
+]
+
+[tool.setuptools.package-dir]
+todo_manager = "."

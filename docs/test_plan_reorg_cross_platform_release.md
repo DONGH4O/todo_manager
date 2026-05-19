@@ -1,0 +1,299 @@
+# Todo Manager 重整与跨平台发布测试计划
+
+> 版本：v0.1  
+> 日期：2026-05-19  
+> 状态：草案  
+> 配套文档：`requirements_reorg_cross_platform_release.md`、`milestone_plan_reorg_cross_platform_release.md`
+
+## 1. 测试目标
+
+本测试计划用于验证 Todo Manager 在重整、跨平台、发布和 agent 调用场景下的质量。
+
+核心目标：
+
+1. 防止 engine 行为在重构中退化。
+2. 验证 Windows 与 macOS 的源码运行、数据目录、CLI、GUI 行为。
+3. 验证 CLI 机器可读契约，确保 AI agent 可稳定调用。
+4. 验证发布包、npm 包和 SKILL 的可用性。
+5. 验证 GUI 重设计后关键工作流可用且无明显布局问题。
+
+## 2. 测试环境矩阵
+
+| 环境 | Python | 目标 |
+|---|---|---|
+| Windows 11 x64 | 3.11、3.12、3.13 任选至少 1 个主版本 | 开发、CLI、GUI、打包、npm |
+| macOS 13+ Apple Silicon | 3.11、3.12、3.13 任选至少 1 个主版本 | 开发、CLI、GUI、打包、npm |
+| macOS 13+ Intel | 可选，至少记录策略 | 打包兼容性评估 |
+
+推荐 CI 最小矩阵：
+
+- `windows-latest` + Python 3.12
+- `macos-latest` + Python 3.12
+
+本地发布前扩展矩阵：
+
+- Windows + Python 3.11/3.12/3.13
+- macOS + Python 3.11/3.12/3.13
+
+## 3. 测试类型
+
+### 3.1 静态与编译检查
+
+目的：发现语法错误、导入错误和基础工程问题。
+
+命令：
+
+```powershell
+python -m compileall engine cli gui scripts
+```
+
+后续可加入：
+
+```powershell
+python -m ruff check .
+python -m mypy engine cli gui
+```
+
+验收：
+
+- 项目正式源码无语法错误。
+- 不可维护或废弃脚本必须修复、删除或移入归档，并在文档说明。
+
+### 3.2 Engine 单元测试
+
+覆盖范围：
+
+- `Task`、`SubTask`、`VersionRecord` 序列化。
+- 创建、查询、更新、删除、撤销。
+- 子任务父子关系。
+- 日期展示规则。
+- 搜索与扁平化。
+- v1 数据兼容。
+
+重点新增：
+
+- `Task.from_dict` 与 `SubTask.from_dict` 不应意外污染输入 dict。
+- 损坏 JSON 不应静默当作空数据成功处理。
+- 原子写入失败时旧文件保留。
+- Windows/macOS 路径下保存和读取均正常。
+
+验收：
+
+```powershell
+python -m pytest tests/test_task_manager.py tests/test_storage.py tests/test_calendar.py
+```
+
+### 3.3 CLI 测试
+
+现有 CLI 测试主要直接调用 command 函数。重整后必须增加真实入口测试。
+
+覆盖范围：
+
+- `todo --help`
+- `todo add`
+- `todo list`
+- `todo show`
+- `todo edit`
+- `todo delete`
+- `todo undo`
+- `todo sub add/list/show/edit/delete/undo`
+- `todo cal`
+- `todo search`
+- `todo stats`
+- `--data-dir`
+- `--json`
+
+真实入口示例：
+
+```powershell
+todo --data-dir C:\tmp\todo-smoke add "测试任务" -s 2026-05-19 -e 2026-05-19 --status 未启动
+todo --data-dir C:\tmp\todo-smoke list --json
+```
+
+macOS 示例：
+
+```bash
+todo --data-dir /tmp/todo-smoke add "测试任务" -s 2026-05-19 -e 2026-05-19 --status 未启动
+todo --data-dir /tmp/todo-smoke list --json
+```
+
+验收：
+
+- stdout 中无非结果性噪声。
+- stderr 用于错误和诊断。
+- JSON 输出可被标准 JSON parser 解析。
+- 退出码符合 CLI contract。
+- Windows 中文输出不乱码。
+
+### 3.4 平台路径测试
+
+覆盖范围：
+
+- Windows 冻结态默认目录。
+- macOS 冻结态默认目录。
+- 开发态默认目录。
+- 显式 `--data-dir` 覆盖。
+- 路径中包含空格、中文字符。
+
+建议通过 monkeypatch 模拟：
+
+- `sys.platform`
+- `APPDATA`
+- `HOME`
+- `sys.frozen`
+
+测试样例：
+
+| 用例 | 输入 | 期望 |
+---|---|---|
+| Windows frozen | `APPDATA=C:\Users\me\AppData\Roaming` | `...\TodoManager\data` |
+| macOS frozen | `HOME=/Users/me` | `~/Library/Application Support/TodoManager/data` |
+| explicit data dir | `--data-dir <path>` | 完全使用显式路径 |
+| Chinese path | `C:\tmp\待办数据` | 正常读写 |
+
+### 3.5 GUI 测试
+
+GUI 测试不追求像素级精确，重点验证核心交互。
+
+覆盖范围：
+
+- GUI 启动。
+- 默认展示今天。
+- 月份前后切换。
+- 搜索任务并定位。
+- 新建任务弹窗字段。
+- 编辑任务。
+- 删除任务和撤销。
+- 新建子任务。
+- 暗色主题切换与持久化。
+- 快捷键不干扰输入框。
+
+命令：
+
+```powershell
+python -m pytest tests/test_gui.py
+```
+
+macOS 本地人工检查：
+
+- 中文显示正常。
+- Retina 下清晰。
+- 快捷键可用。
+- 弹窗不跑到屏幕外。
+- 搜索下拉层级正常。
+
+### 3.6 GUI 视觉验收
+
+M5 完成后需要人工或截图验收。
+
+视口：
+
+- 1366x768 或等价小屏。
+- 1920x1080。
+- 2560x1440。
+- 3840x2160。
+
+检查项：
+
+- 顶部栏不拥挤。
+- 月历格高度稳定。
+- 任务条文字不明显溢出。
+- 详情面板字段可读。
+- 图标按钮有 tooltip。
+- 暗色模式对比度足够。
+- 弹窗按钮和输入框不重叠。
+
+### 3.7 打包测试
+
+Windows：
+
+```powershell
+python scripts/build.py all
+dist\TodoManager\todo.exe --help
+dist\TodoManager\todo-gui.exe
+```
+
+macOS：
+
+```bash
+python scripts/build.py all
+./dist/TodoManager/todo --help
+open ./dist/TodoManager/TodoManager.app
+```
+
+验收：
+
+- 打包成功。
+- CLI 产物可运行。
+- GUI 产物可启动。
+- 数据目录符合平台要求。
+- release 包中不包含 `.venv`、`__pycache__`、`.pytest_cache`、测试临时数据。
+
+### 3.8 npm 包测试
+
+必须测试：
+
+```bash
+npm pack --dry-run
+npm install -g .
+todo-manager --help
+todo-manager --json stats
+```
+
+Windows PowerShell 也需等价测试。
+
+验收：
+
+- `npm pack --dry-run` 文件清单干净。
+- 安装后命令在 Windows 和 macOS 可执行。
+- npm wrapper 能正确传递参数、stdin、stdout、stderr 和退出码。
+- 卸载后不残留不可解释文件。
+
+### 3.9 SKILL 测试
+
+使用一个独立数据目录验证 agent 工作流：
+
+1. 查看今日任务。
+2. 新建一个主任务。
+3. 新建一个子任务。
+4. 修改主任务状态。
+5. 搜索任务。
+6. 删除子任务。
+7. 撤销删除。
+8. 输出最终任务摘要。
+
+验收：
+
+- agent 只依赖 CLI JSON 模式即可完成。
+- SKILL 中的命令与实际 CLI 一致。
+- 错误处理说明能覆盖 not found、validation error、data file error。
+
+## 4. 发布前完整验收清单
+
+发布候选必须完成：
+
+- `python -m compileall engine cli gui scripts`
+- engine 测试通过。
+- CLI 真实入口测试通过。
+- GUI 测试通过。
+- Windows CI 通过。
+- macOS CI 通过。
+- Windows 本地 GUI smoke 通过。
+- macOS 本地 GUI smoke 通过。
+- Windows 打包产物 smoke 通过。
+- macOS 打包产物 smoke 通过。
+- `npm pack --dry-run` 文件清单审计通过。
+- SKILL agent 工作流通过。
+- README 与实际命令一致。
+- release checklist 完成。
+
+## 5. 当前阻塞与前置动作
+
+当前无法执行完整测试，原因：
+
+- 本地 `.venv` 缺少 pytest。
+- 本地 `.venv` 缺少 PyInstaller。
+- 项目缺少 `pyproject.toml`，无法按标准 editable package 安装。
+
+M0 必须先解决这些前置动作，然后再以本测试计划作为回归基线。
+
