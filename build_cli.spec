@@ -1,47 +1,44 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller spec — CLI 入口 todo.exe
+"""PyInstaller spec for the Todo Manager CLI artifact."""
 
-用法: pyinstaller build_cli.spec
-"""
-
-import sys
 from pathlib import Path
 
-# SPECPATH 由 PyInstaller 自动设置为 spec 文件所在目录
-# pathex 需指向包含 todo_manager 包的上级目录
+
 _spec_dir = Path(SPECPATH)
-_project_root = _spec_dir  # todo_manager/
-_package_root = _spec_dir.parent  # WorkBuddy/.../ （包含 todo_manager 包）
+_project_root = _spec_dir
+_package_root = _spec_dir.parent
 
 a = Analysis(
-    [str(_project_root / 'cli' / '__main__.py')],
+    [str(_project_root / "cli" / "__main__.py")],
     pathex=[str(_package_root)],
     binaries=[],
     datas=[],
     hiddenimports=[
-        'todo_manager.engine',
-        'todo_manager.engine.models',
-        'todo_manager.engine.task_manager',
-        'todo_manager.engine.storage',
-        'todo_manager.engine.platform_paths',
-        'todo_manager.engine.calendar_utils',
-        'todo_manager.cli',
-        'todo_manager.cli.commands',
-        'todo_manager.cli.display',
+        "todo_manager.engine",
+        "todo_manager.engine.models",
+        "todo_manager.engine.task_manager",
+        "todo_manager.engine.storage",
+        "todo_manager.engine.platform_paths",
+        "todo_manager.engine.calendar_utils",
+        "todo_manager.cli",
+        "todo_manager.cli.commands",
+        "todo_manager.cli.contract",
+        "todo_manager.cli.display",
+        "todo_manager.cli.main",
     ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[
-        'PySide6',
-        'PySide6.QtWidgets',
-        'PySide6.QtCore',
-        'PySide6.QtGui',
-        'shiboken6',
-        'pytest',
-        'unittest',
-        'tkinter',
-        'matplotlib',
+        "PySide6",
+        "PySide6.QtWidgets",
+        "PySide6.QtCore",
+        "PySide6.QtGui",
+        "shiboken6",
+        "pytest",
+        "unittest",
+        "tkinter",
+        "matplotlib",
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
@@ -58,7 +55,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='todo',
+    name="todo",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

@@ -208,9 +208,10 @@ M5 完成后需要人工或截图验收。
 Windows：
 
 ```powershell
-python scripts/build.py all
+.\.venv\Scripts\python.exe scripts\build.py all
 dist\TodoManager\todo.exe --help
-dist\TodoManager\todo-gui.exe
+dist\TodoManager\todo-gui.exe --help
+.\.venv\Scripts\python.exe scripts\smoke_release.py --platform windows --release-dir dist\TodoManager --zip dist\TodoManager-windows-YYYY-MM-DD.zip
 ```
 
 macOS：
@@ -218,7 +219,9 @@ macOS：
 ```bash
 python scripts/build.py all
 ./dist/TodoManager/todo --help
+./dist/TodoManager/TodoManager.app/Contents/MacOS/todo-gui --help
 open ./dist/TodoManager/TodoManager.app
+python scripts/smoke_release.py --platform macos --release-dir dist/TodoManager --zip dist/TodoManager-macos-YYYY-MM-DD.zip
 ```
 
 验收：
@@ -248,6 +251,41 @@ Windows PowerShell 也需等价测试。
 - 安装后命令在 Windows 和 macOS 可执行。
 - npm wrapper 能正确传递参数、stdin、stdout、stderr 和退出码。
 - 卸载后不残留不可解释文件。
+
+### 3.8.5 React 桌面壳测试
+
+M6.5 起正式发布界面为 React 桌面界面，需覆盖：
+
+- `npm run lint`、`npm run typecheck`、`npm run build`。
+- `todo-gui --react-root frontend/out` 可加载 React 静态导出，且不需要 `--react` 即可启动 React GUI。
+- `tests/test_react_shell_bridge.py` 验证 QtWebEngine bridge 通过 CLI JSON contract 创建、更新、读取任务。
+- `scripts/build.py react` 生成 `desktop-react/` 与平台启动器。
+- `scripts/smoke_release.py` 审计 release/zip 中包含 React 桌面资源且不包含 `.next`、`node_modules`、测试截图或临时文件。
+- Windows 手工打开 `todo-gui.exe`，macOS 手工打开 `TodoManager.app`，验证新建、编辑、删除、撤销、搜索和主题切换；`todo-react.bat` / `todo-react` 仅作为兼容启动器抽查。
+
+### 3.8.6 应用图标测试
+
+M6.6 起需覆盖 GUI 应用图标：
+
+- `scripts/generate_app_icons.py` 可复现生成 `png`、`ico`、`icns`、`svg`。
+- React QtWebEngine 壳窗口设置项目 `QIcon`；旧 PySide6 widget GUI 仅归档留存，不再作为验收对象。
+- `build_gui.spec` 在 Windows EXE 中使用 `.ico`，在 macOS `.app` bundle 中使用 `.icns`，并将运行时 PNG 资源纳入 PyInstaller datas。
+- Windows 手工检查任务栏、Alt-Tab/缩略图和桌面/文件资源管理器图标。
+- macOS 手工检查 Dock、Command-Tab 和 Finder `.app` 图标。
+
+### 3.8.7 GitHub Actions CI
+
+M7 起最小 CI gate 由 `.github/workflows/ci.yml` 承载，覆盖 `windows-latest` 与 `macos-latest`：
+
+- Python 3.12 环境安装：`python -m pip install -e ".[dev]"`。
+- Python 编译检查：`python -m compileall engine cli gui scripts`。
+- 全量回归：`python -m pytest -q`。
+- README 入口 smoke：`todo --help`、`todo-gui --help`。
+- CLI JSON smoke：运行 `python scripts/ci_cli_smoke.py`，使用独立临时数据目录创建任务并解析 `list --json` 输出。
+- React 前端验证：`npm ci`、`npm run lint`、`npm run typecheck`、`npm run build`、`npm audit --omit=dev`。
+- React 桌面 release dry-run：`python scripts/build.py react` 与 `python scripts/smoke_release.py --react-only`。
+
+CI 不替代完整 PyInstaller release build；完整发布包仍按 3.7 在 Windows/macOS 原生环境执行 `scripts/build.py all` 与完整 `scripts/smoke_release.py`。
 
 ### 3.9 SKILL 测试
 
@@ -296,4 +334,3 @@ Windows PowerShell 也需等价测试。
 - 项目缺少 `pyproject.toml`，无法按标准 editable package 安装。
 
 M0 必须先解决这些前置动作，然后再以本测试计划作为回归基线。
-

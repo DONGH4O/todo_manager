@@ -46,9 +46,10 @@ class SubTask:
     @classmethod
     def from_dict(cls, d: dict) -> "SubTask":
         """从 dict 反序列化"""
-        history_data = d.pop("history", [])
+        data = dict(d)
+        history_data = data.pop("history", [])
         history = [VersionRecord(**h) for h in history_data]
-        return cls(**d, history=history)
+        return cls(**data, history=history)
 
 
 @dataclass
@@ -77,8 +78,9 @@ class Task:
 
         向后兼容 v1 数据：缺少 subtasks 字段时自动设为空列表。
         """
-        history_data = d.pop("history", [])
+        data = dict(d)
+        history_data = data.pop("history", [])
         history = [VersionRecord(**h) for h in history_data]
-        subtasks_data = d.pop("subtasks", [])
+        subtasks_data = data.pop("subtasks", [])
         subtasks = [SubTask.from_dict(s) for s in subtasks_data]
-        return cls(**d, history=history, subtasks=subtasks)
+        return cls(**data, history=history, subtasks=subtasks)

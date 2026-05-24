@@ -2,7 +2,7 @@
 
 > 日期：2026-05-19  
 > 环境：Windows，本地 `.venv`，Python 3.14.0，PySide6 6.11.0  
-> 结论：M1 本地开发与回归验证通过；macOS 实机验证待后续 CI 或 macOS 环境补齐。
+> 结论：M1 本地开发与回归验证通过；完整里程碑验收未关闭，待补齐 macOS CLI/GUI 实机验证和 Windows GUI 人工窗口启动。
 
 ## 1. 变更摘要
 
@@ -30,18 +30,24 @@
 | `.venv\Scripts\python.exe -m pytest tests\test_gui.py` | 33 passed |
 | `.venv\Scripts\python.exe -m pytest` | 213 passed |
 
-## 3. 观察到的非阻塞问题
+## 3. 已知限制与待补齐验收
 
 - pytest 提示 `.pytest_cache` 缓存路径创建 warning：`could not create cache path ... [WinError 183]`。断言全部通过，缓存目录问题不影响本轮功能验证。
 - 当前本地 Python 为 3.14.0，高于需求文档推荐的 3.11 至 3.13。代码和测试已通过，但发布/CI 仍应按推荐矩阵验证 3.11、3.12、3.13。
-- macOS 实机 CLI/GUI 尚未在本轮本地环境执行；目前通过路径模拟和平台无关入口 smoke 覆盖，后续 M7 CI 或 macOS 手工验证需要补齐。
+- 完整 M1 验收仍缺 macOS 实机 CLI/GUI 和 Windows GUI 人工窗口启动；本轮只能证明路径解析、源码入口 help、offscreen GUI 回归和 Windows CLI `--data-dir` smoke。
 
 ## 4. M1 验收映射
 
 | 验收项 | 本轮状态 |
 |---|---|
 | Windows 源码运行 CLI 成功 | 已验证 |
-| macOS 源码运行 CLI 成功 | 待 macOS 环境复验 |
-| Windows 源码启动 GUI 成功 | 已验证 GUI help 入口与 offscreen GUI 测试；人工窗口启动待需要时执行 |
-| macOS 源码启动 GUI 成功 | 待 macOS 环境复验 |
-| 显式 `--data-dir` 覆盖在两平台均生效 | Windows smoke 已验证；Windows/macOS 路径解析单测已覆盖 |
+| macOS 源码运行 CLI 成功 | 未验证，待 macOS 环境或 CI 复验 |
+| Windows 源码启动 GUI 成功 | 部分验证：GUI help 入口与 offscreen GUI 测试通过；人工窗口启动未执行 |
+| macOS 源码启动 GUI 成功 | 未验证，待 macOS 环境或 CI 复验 |
+| 显式 `--data-dir` 覆盖在两平台均生效 | 部分验证：Windows smoke 已通过，Windows/macOS 路径解析单测已覆盖；macOS 实机写入待复验 |
+
+## 5. 后续验收动作
+
+- 在 Windows 桌面环境执行 `python -m todo_manager.gui --data-dir <temp>`，确认窗口可启动、可关闭且数据目录生效。
+- 在 macOS 环境执行 `python -m todo_manager.cli --help`、`python -m todo_manager.gui --help` 和 `todo --data-dir <temp> add ...` smoke。
+- 在 macOS 桌面环境启动 GUI，确认窗口可启动、中文显示正常且显式 `--data-dir` 生效。

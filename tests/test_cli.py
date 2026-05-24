@@ -526,6 +526,28 @@ class TestCmdStats:
 # ── 历史记录具体内容验证 ────────────────────────────────
 
 class TestHistoryContent:
+    def test_history_renders_newest_first(self):
+        """历史记录展示时最新版本应在最前，便于 CLI 快速审计。"""
+        from todo_manager.cli.display import format_history
+        from todo_manager.engine.models import VersionRecord
+
+        records = [
+            VersionRecord(version=1, title="v1", start_date="2026-05-01",
+                          end_date="2026-05-02", status="未启动", background="",
+                          changed_at="2026-05-01T00:00:00"),
+            VersionRecord(version=2, title="v2", start_date="2026-05-01",
+                          end_date="2026-05-03", status="完成中", background="",
+                          changed_at="2026-05-02T00:00:00"),
+            VersionRecord(version=3, title="v3", start_date="2026-05-01",
+                          end_date="2026-05-04", status="已完成", background="done",
+                          changed_at="2026-05-03T00:00:00"),
+        ]
+
+        out = format_history(records, max_n=3)
+
+        assert "最新在前" in out
+        assert out.index("v3") < out.index("v2") < out.index("v1")
+
     def test_history_shows_background_change(self):
         """验证历史记录正确展示 background 变更"""
         from todo_manager.cli.commands import cmd_show

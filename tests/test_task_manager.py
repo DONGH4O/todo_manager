@@ -1,6 +1,7 @@
 """任务管理模块单元测试"""
 
 import os
+import copy
 import tempfile
 import pytest
 from todo_manager.engine.models import Task, SubTask, VersionRecord, VALID_STATUSES
@@ -605,6 +606,27 @@ class TestModelSerialization:
         assert len(restored.history) == 1
         assert restored.history[0].version == 1
 
+    def test_subtask_from_dict_does_not_mutate_input(self):
+        sub = SubTask(
+            id="sub-id",
+            title="子任务",
+            start_date="2026-04-01",
+            end_date="2026-04-15",
+            status="未启动",
+            background="bg",
+            history=[
+                VersionRecord(version=1, title="子任务", start_date="2026-04-01",
+                              end_date="2026-04-15", status="未启动", background="bg",
+                              changed_at="2026-04-01T00:00:00")
+            ]
+        )
+        data = sub.to_dict()
+        before = copy.deepcopy(data)
+
+        SubTask.from_dict(data)
+
+        assert data == before
+
     def test_task_with_subtasks_roundtrip(self):
         sub = SubTask(
             id="sub-1",
@@ -629,6 +651,41 @@ class TestModelSerialization:
         assert len(restored.subtasks) == 1
         assert restored.subtasks[0].id == "sub-1"
         assert restored.subtasks[0].title == "子"
+
+    def test_task_from_dict_does_not_mutate_input(self):
+        sub = SubTask(
+            id="sub-1",
+            title="子",
+            start_date="2026-04-01",
+            end_date="2026-04-15",
+            status="未启动",
+            background="",
+            history=[
+                VersionRecord(version=1, title="子", start_date="2026-04-01",
+                              end_date="2026-04-15", status="未启动", background="",
+                              changed_at="2026-04-01T00:00:00")
+            ]
+        )
+        task = Task(
+            id="task-1",
+            title="主",
+            start_date="2026-04-01",
+            end_date="2026-04-30",
+            status="未启动",
+            background="bg",
+            history=[
+                VersionRecord(version=1, title="主", start_date="2026-04-01",
+                              end_date="2026-04-30", status="未启动", background="bg",
+                              changed_at="2026-04-01T00:00:00")
+            ],
+            subtasks=[sub],
+        )
+        data = task.to_dict()
+        before = copy.deepcopy(data)
+
+        Task.from_dict(data)
+
+        assert data == before
 
     def test_subtask_history_independent(self):
         """验证子任务历史与主任务历史各自独立"""

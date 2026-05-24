@@ -1,54 +1,51 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller spec — GUI 入口 todo-gui.exe
-
-用法: pyinstaller build_gui.spec
-"""
+"""PyInstaller spec for the Todo Manager GUI artifact."""
 
 import sys
 from pathlib import Path
 
-# SPECPATH 由 PyInstaller 自动设置为 spec 文件所在目录
+
 _spec_dir = Path(SPECPATH)
 _project_root = _spec_dir
 _package_root = _spec_dir.parent
+_icon_dir = _project_root / "assets" / "icons"
+_windows_icon = _icon_dir / "todo-manager.ico"
+_macos_icon = _icon_dir / "todo-manager.icns"
+_exe_icon = _macos_icon if sys.platform == "darwin" else _windows_icon
 
 a = Analysis(
-    [str(_project_root / 'gui' / 'main.py')],
+    [str(_project_root / "gui" / "main.py")],
     pathex=[str(_package_root)],
     binaries=[],
-    datas=[],
+    datas=[(str(_icon_dir), "assets/icons")],
     hiddenimports=[
-        'todo_manager.engine',
-        'todo_manager.engine.models',
-        'todo_manager.engine.task_manager',
-        'todo_manager.engine.storage',
-        'todo_manager.engine.platform_paths',
-        'todo_manager.engine.calendar_utils',
-        'todo_manager.gui',
-        'todo_manager.gui.app',
-        'todo_manager.gui.theme',
-        'todo_manager.gui.widgets',
-        'todo_manager.gui.widgets.task_bar',
-        'todo_manager.gui.widgets.calendar_cell',
-        'todo_manager.gui.widgets.calendar_grid',
-        'todo_manager.gui.widgets.detail_panel',
-        'todo_manager.gui.widgets.dialogs',
-        'todo_manager.gui.widgets.search_bar',
-        'todo_manager.gui.widgets.month_nav',
-        'todo_manager.gui.widgets.theme_toggle',
-        # Qt 插件隐式导入
-        'PySide6.QtPrintSupport',
-        'PySide6.QtSvg',
-        'PySide6.QtSvgWidgets',
+        "todo_manager.engine",
+        "todo_manager.engine.models",
+        "todo_manager.engine.task_manager",
+        "todo_manager.engine.storage",
+        "todo_manager.engine.platform_paths",
+        "todo_manager.engine.calendar_utils",
+        "todo_manager.cli",
+        "todo_manager.cli.commands",
+        "todo_manager.cli.contract",
+        "todo_manager.cli.main",
+        "todo_manager.gui",
+        "todo_manager.gui.app",
+        "todo_manager.gui.icon",
+        "todo_manager.gui.main",
+        "todo_manager.gui.react_shell",
+        "PySide6.QtWebChannel",
+        "PySide6.QtWebEngineCore",
+        "PySide6.QtWebEngineWidgets",
     ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[
-        'pytest',
-        'unittest',
-        'tkinter',
-        'matplotlib',
+        "pytest",
+        "unittest",
+        "tkinter",
+        "matplotlib",
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
@@ -65,7 +62,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='todo-gui',
+    name="todo-gui",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -78,5 +75,20 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=None,
+    icon=str(_exe_icon),
 )
+
+if sys.platform == "darwin":
+    app = BUNDLE(
+        exe,
+        name="TodoManager.app",
+        icon=str(_macos_icon),
+        bundle_identifier="com.local.todo-manager",
+        info_plist={
+            "CFBundleDisplayName": "Todo Manager",
+            "CFBundleName": "Todo Manager",
+            "CFBundleShortVersionString": "0.1.0",
+            "CFBundleVersion": "0.1.0",
+            "NSHighResolutionCapable": True,
+        },
+    )

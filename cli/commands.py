@@ -20,6 +20,15 @@ from todo_manager.cli.display import (
     format_task_detail, format_subtask_list, format_subtask_detail,
     format_history, format_calendar, format_stats, format_search_results,
 )
+from todo_manager.cli.contract import (
+    EXIT_INTERNAL,
+    EXIT_NOT_FOUND,
+    EXIT_VALIDATION,
+    emit_success,
+    fail,
+    fail_for_value_error,
+    is_json_mode,
+)
 
 
 def _confirm(prompt: str = "确认？[y/N]: ") -> bool:
@@ -32,10 +41,29 @@ def _confirm(prompt: str = "确认？[y/N]: ") -> bool:
     return ans in ("y", "yes")
 
 
-def _fail(msg: str, code: int = 1):
+def _fail(
+    msg: str,
+    code: int = EXIT_VALIDATION,
+    error_code: str = "validation_error",
+):
     """打印错误到 stderr 并退出。"""
-    print(f"错误: {msg}", file=sys.stderr)
-    sys.exit(code)
+    fail(msg, error_code=error_code, exit_code=code)
+
+
+def _fail_not_found(msg: str):
+    _fail(msg, code=EXIT_NOT_FOUND, error_code="not_found")
+
+
+def _task_payload(task):
+    return task.to_dict()
+
+
+def _tasks_payload(tasks):
+    return [_task_payload(t) for t in tasks]
+
+
+def _should_confirm(args) -> bool:
+    return not getattr(args, "force", False) and not is_json_mode(args)
 
 
 # 字段名 → 中文标签映射（用于编辑摘要）
@@ -80,7 +108,9 @@ def cmd_add(args):
             background=args.background or "",
         )
     except ValueError as e:
-        _fail(str(e))
+        fail_for_value_error(e)
+    if emit_success(args, "add", {"task": _task_payload(task)}):
+        return
     print(f"已创建任务 [{task.id[:8]}] \"{task.title}\"")
 
 
@@ -89,9 +119,17 @@ def cmd_add(args):
 def cmd_list(args):
     if args.date:
         tasks = get_tasks_for_date(args.date)
+        if emit_success(args, "list", {"date": args.date, "tasks": _tasks_payload(tasks)}):
+            return
         output = format_task_list_with_subtasks(tasks)
     else:
         tasks = list_all_tasks(include_deleted=args.deleted)
+        if emit_success(
+            args,
+            "list",
+            {"include_deleted": args.deleted, "tasks": _tasks_payload(tasks)},
+        ):
+            return
         output = format_task_table(tasks, show_date=True, show_id=True)
     print(output)
 
@@ -101,10 +139,16 @@ def cmd_list(args):
 def cmd_show(args):
     task = get_task(args.task_id)
     if task is None:
-        _fail(f"未找到任务: {args.task_id}")
+        _fail_not_found(f"未找到任务: {args.task_id}")
 
     detail = format_task_detail(task)
     history = format_history(task.history, max_n=args.history or 5)
+    if emit_success(
+        args,
+        "show",
+        {"task": _task_payload(task), "history_limit": args.history or 5},
+    ):
+        return
     print(detail)
     print()
     print(history)
@@ -119,10 +163,10 @@ def cmd_edit(args):
         _fail("至少需要提供一个要修改的字段。使用 -h 查看选项。")
 
     # 确认机制（默认不跳过）
-    if not args.force:
+    if _should_confirm(args):
         task = get_task(args.task_id)
         if task is None:
-            _fail(f"未找到任务: {args.task_id}")
+            _fail_not_found(f"未找到任务: {args.task_id}")
         change_items = []
         for field, val in kwargs.items():
             label = _FIELD_LABELS.get(field, field)
@@ -135,11 +179,17 @@ def cmd_edit(args):
     try:
         updated = update_task(args.task_id, **kwargs)
     except ValueError as e:
-        _fail(str(e))
+        fail_for_value_error(e)
 
     # 打印变更摘要（使用中文标签）
     change_items = [_FIELD_LABELS.get(k, k) + " 已更新" for k in kwargs]
     changes = ", ".join(change_items)
+    if emit_success(
+        args,
+        "edit",
+        {"task": _task_payload(updated), "changed_fields": list(kwargs.keys())},
+    ):
+        return
     print(f"任务 \"{updated.title}\" {changes}")
 
 
@@ -148,9 +198,15 @@ def cmd_edit(args):
 def cmd_delete(args):
     task = get_task(args.task_id)
     if task is None:
-        _fail(f"未找到任务: {args.task_id}")
+        _fail_not_found(f"未找到任务: {args.task_id}")
 
     if task.deleted:
+        if emit_success(
+            args,
+            "delete",
+            {"deleted": False, "already_deleted": True, "task": _task_payload(task)},
+        ):
+            return
         print(f"任务已处于删除状态: {task.title}")
         return
 
@@ -160,15 +216,24 @@ def cmd_delete(args):
         msg += f" (含 {sub_count} 条子任务)"
     msg += "，确认？[y/N]: "
 
-    if not args.force and not _confirm(msg):
+    if _should_confirm(args) and not _confirm(msg):
+        if emit_success(args, "delete", {"deleted": False, "cancelled": True}):
+            return
         print("已取消")
         return
 
     result = delete_task(args.task_id)
     if result:
+        deleted_task = get_task(args.task_id)
+        if emit_success(
+            args,
+            "delete",
+            {"deleted": True, "task": _task_payload(deleted_task or task)},
+        ):
+            return
         print(f"已删除: {task.title}")
     else:
-        _fail(f"删除失败: {args.task_id}")
+        _fail(f"删除失败: {args.task_id}", code=EXIT_INTERNAL, error_code="internal_error")
 
 
 # ── todo undo ───────────────────────────────────────────
@@ -176,22 +241,37 @@ def cmd_delete(args):
 def cmd_undo(args):
     task = get_task(args.task_id)
     if task is None:
-        _fail(f"未找到任务: {args.task_id}")
+        _fail_not_found(f"未找到任务: {args.task_id}")
     if not task.deleted:
+        if emit_success(
+            args,
+            "undo",
+            {"restored": False, "not_deleted": True, "task": _task_payload(task)},
+        ):
+            return
         print(f"该任务未被删除，无需恢复: {task.title}")
         return
 
     msg = f"将恢复任务 \"{task.title}\"，确认？[y/N]: "
 
-    if not args.force and not _confirm(msg):
+    if _should_confirm(args) and not _confirm(msg):
+        if emit_success(args, "undo", {"restored": False, "cancelled": True}):
+            return
         print("已取消")
         return
 
     result = undo_task(args.task_id)
     if result:
+        restored = get_task(args.task_id)
+        if emit_success(
+            args,
+            "undo",
+            {"restored": True, "task": _task_payload(restored) if restored else None},
+        ):
+            return
         print(f"已恢复: {task.title}")
     else:
-        _fail(f"恢复失败: {args.task_id}")
+        _fail(f"恢复失败: {args.task_id}", code=EXIT_INTERNAL, error_code="internal_error")
 
 
 # ── todo sub add ────────────────────────────────────────
@@ -208,7 +288,9 @@ def cmd_sub_add(args):
             background=args.background or "",
         )
     except ValueError as e:
-        _fail(str(e))
+        fail_for_value_error(e)
+    if emit_success(args, "sub add", {"subtask": _task_payload(sub), "parent_id": args.task_id}):
+        return
     print(f"已创建子任务 [{sub.id[:8]}] \"{sub.title}\"")
 
 
@@ -217,8 +299,14 @@ def cmd_sub_add(args):
 def cmd_sub_list(args):
     task = get_task(args.task_id)
     if task is None:
-        _fail(f"未找到任务: {args.task_id}")
+        _fail_not_found(f"未找到任务: {args.task_id}")
 
+    if emit_success(
+        args,
+        "sub list",
+        {"task": _task_payload(task), "subtasks": [_task_payload(s) for s in task.subtasks]},
+    ):
+        return
     print(format_subtask_list(task))
 
 
@@ -227,14 +315,24 @@ def cmd_sub_list(args):
 def cmd_sub_show(args):
     task = get_task(args.task_id)
     if task is None:
-        _fail(f"未找到任务: {args.task_id}")
+        _fail_not_found(f"未找到任务: {args.task_id}")
 
     sub = get_subtask(args.task_id, args.sub_id)
     if sub is None:
-        _fail(f"未找到子任务: {args.sub_id}")
+        _fail_not_found(f"未找到子任务: {args.sub_id}")
 
     detail = format_subtask_detail(sub, task.title)
     history = format_history(sub.history, max_n=args.history or 5)
+    if emit_success(
+        args,
+        "sub show",
+        {
+            "task": _task_payload(task),
+            "subtask": _task_payload(sub),
+            "history_limit": args.history or 5,
+        },
+    ):
+        return
     print(detail)
     print()
     print(history)
@@ -245,11 +343,11 @@ def cmd_sub_show(args):
 def cmd_sub_edit(args):
     task = get_task(args.task_id)
     if task is None:
-        _fail(f"未找到任务: {args.task_id}")
+        _fail_not_found(f"未找到任务: {args.task_id}")
 
     sub = get_subtask(args.task_id, args.sub_id)
     if sub is None:
-        _fail(f"未找到子任务: {args.sub_id}")
+        _fail_not_found(f"未找到子任务: {args.sub_id}")
 
     kwargs = _build_edit_kwargs(args)
 
@@ -257,7 +355,7 @@ def cmd_sub_edit(args):
         _fail("至少需要提供一个要修改的字段。使用 -h 查看选项。")
 
     # 确认机制（默认不跳过）
-    if not args.force:
+    if _should_confirm(args):
         change_items = []
         for field, val in kwargs.items():
             label = _FIELD_LABELS.get(field, field)
@@ -270,8 +368,14 @@ def cmd_sub_edit(args):
     try:
         updated = update_subtask(args.task_id, args.sub_id, **kwargs)
     except ValueError as e:
-        _fail(str(e))
+        fail_for_value_error(e)
 
+    if emit_success(
+        args,
+        "sub edit",
+        {"subtask": _task_payload(updated), "changed_fields": list(kwargs.keys())},
+    ):
+        return
     print(f"子任务 \"{updated.title}\" 已更新")
 
 
@@ -280,27 +384,42 @@ def cmd_sub_edit(args):
 def cmd_sub_delete(args):
     task = get_task(args.task_id)
     if task is None:
-        _fail(f"未找到任务: {args.task_id}")
+        _fail_not_found(f"未找到任务: {args.task_id}")
 
     sub = get_subtask(args.task_id, args.sub_id)
     if sub is None:
-        _fail(f"未找到子任务: {args.sub_id}")
+        _fail_not_found(f"未找到子任务: {args.sub_id}")
 
     if sub.deleted:
+        if emit_success(
+            args,
+            "sub delete",
+            {"deleted": False, "already_deleted": True, "subtask": _task_payload(sub)},
+        ):
+            return
         print(f"子任务已处于删除状态: {sub.title}")
         return
 
-    if not args.force:
+    if _should_confirm(args):
         msg = f"将删除子任务 \"{sub.title}\"，确认？[y/N]: "
         if not _confirm(msg):
+            if emit_success(args, "sub delete", {"deleted": False, "cancelled": True}):
+                return
             print("已取消")
             return
 
     result = delete_subtask(args.task_id, args.sub_id)
     if result:
+        deleted_subtask = get_subtask(args.task_id, args.sub_id)
+        if emit_success(
+            args,
+            "sub delete",
+            {"deleted": True, "subtask": _task_payload(deleted_subtask or sub)},
+        ):
+            return
         print(f"已删除子任务: {sub.title}")
     else:
-        _fail(f"删除失败")
+        _fail("删除失败", code=EXIT_INTERNAL, error_code="internal_error")
 
 
 # ── todo sub undo ───────────────────────────────────────
@@ -308,21 +427,36 @@ def cmd_sub_delete(args):
 def cmd_sub_undo(args):
     sub = get_subtask(args.task_id, args.sub_id)
     if sub is None:
-        _fail(f"未找到子任务: {args.sub_id}")
+        _fail_not_found(f"未找到子任务: {args.sub_id}")
     if not sub.deleted:
+        if emit_success(
+            args,
+            "sub undo",
+            {"restored": False, "not_deleted": True, "subtask": _task_payload(sub)},
+        ):
+            return
         print(f"该子任务未被删除，无需恢复: {sub.title}")
         return
 
     msg = f"将恢复子任务 \"{sub.title}\"，确认？[y/N]: "
-    if not args.force and not _confirm(msg):
+    if _should_confirm(args) and not _confirm(msg):
+        if emit_success(args, "sub undo", {"restored": False, "cancelled": True}):
+            return
         print("已取消")
         return
 
     result = undo_subtask(args.task_id, args.sub_id)
     if result:
+        restored = get_subtask(args.task_id, args.sub_id)
+        if emit_success(
+            args,
+            "sub undo",
+            {"restored": True, "subtask": _task_payload(restored) if restored else None},
+        ):
+            return
         print(f"已恢复子任务: {sub.title}")
     else:
-        _fail(f"恢复失败")
+        _fail("恢复失败", code=EXIT_INTERNAL, error_code="internal_error")
 
 
 # ── todo cal ────────────────────────────────────────────
@@ -357,6 +491,22 @@ def cmd_cal(args):
         tasks_by_date[key] = day_tasks
         day += 1
 
+    if emit_success(
+        args,
+        "cal",
+        {
+            "year": year,
+            "month": month,
+            "days": [
+                {
+                    "date": f"{year:04d}-{date_key}",
+                    "tasks": _tasks_payload(task_list),
+                }
+                for date_key, task_list in tasks_by_date.items()
+            ],
+        },
+    ):
+        return
     print(format_calendar(year, month, tasks_by_date))
 
 
@@ -364,6 +514,8 @@ def cmd_cal(args):
 
 def cmd_search(args):
     results = search_tasks(args.keyword)
+    if emit_success(args, "search", {"keyword": args.keyword, "results": results}):
+        return
     if not results:
         print(f'搜索 "{args.keyword}" (标题+背景+子任务):\n(无匹配结果)')
         return
@@ -411,4 +563,15 @@ def cmd_stats(args):
             upcoming.append(t)
     upcoming.sort(key=lambda t: t.end_date)
 
+    if emit_success(
+        args,
+        "stats",
+        {
+            "total": total,
+            "by_status": by_status,
+            "subtask_total": subtask_total,
+            "upcoming": _tasks_payload(upcoming),
+        },
+    ):
+        return
     print(format_stats(total, by_status, subtask_total, upcoming))

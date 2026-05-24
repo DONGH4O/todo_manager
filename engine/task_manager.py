@@ -510,7 +510,7 @@ def undo_subtask(task_id: str, subtask_id: str) -> bool:
 # ── 搜索与扁平化（GUI 辅助）─────────────────────────────────
 
 def search_tasks(keyword: str) -> List[dict]:
-    """在标题和背景中模糊搜索任务及子任务（不含已删除）。
+    """在标题、背景、状态和日期中模糊搜索任务及子任务（不含已删除）。
 
     匹配规则：
       - ≥2 个字符时部分匹配即命中
@@ -529,9 +529,14 @@ def search_tasks(keyword: str) -> List[dict]:
     results: List[dict] = []
 
     for t in all_tasks:
-        t_title = t.title.lower()
-        t_bg = (t.background or "").lower()
-        parent_match = kw in t_title or kw in t_bg
+        parent_fields = (
+            t.title,
+            t.background or "",
+            t.status,
+            t.start_date,
+            t.end_date,
+        )
+        parent_match = any(kw in str(field).lower() for field in parent_fields)
 
         if parent_match:
             results.append({
@@ -540,21 +545,28 @@ def search_tasks(keyword: str) -> List[dict]:
                 "status": t.status, "background": t.background,
                 "created_at": t.created_at, "deleted": t.deleted,
                 "is_sub": False, "parent_id": None, "parent_title": None,
+                "parent_start_date": None,
             })
 
         # Also search subtasks
         for s in t.subtasks:
             if s.deleted:
                 continue
-            s_title = s.title.lower()
-            s_bg = (s.background or "").lower()
-            if kw in s_title or kw in s_bg:
+            sub_fields = (
+                s.title,
+                s.background or "",
+                s.status,
+                s.start_date,
+                s.end_date,
+            )
+            if any(kw in str(field).lower() for field in sub_fields):
                 results.append({
                     "id": s.id, "title": s.title,
                     "start_date": s.start_date, "end_date": s.end_date,
                     "status": s.status, "background": s.background,
                     "created_at": s.created_at, "deleted": s.deleted,
                     "is_sub": True, "parent_id": t.id, "parent_title": t.title,
+                    "parent_start_date": t.start_date,
                 })
 
     results.sort(key=lambda x: x["created_at"])
@@ -588,6 +600,7 @@ def get_all_tasks_flat() -> List[dict]:
             "is_sub": False,
             "parent_id": None,
             "parent_title": None,
+            "parent_start_date": None,
         })
         for s in t.subtasks:
             if s.deleted:
@@ -604,6 +617,7 @@ def get_all_tasks_flat() -> List[dict]:
                 "is_sub": True,
                 "parent_id": t.id,
                 "parent_title": t.title,
+                "parent_start_date": t.start_date,
             })
 
     flat.sort(key=lambda x: x["created_at"])

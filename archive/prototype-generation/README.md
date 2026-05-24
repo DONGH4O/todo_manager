@@ -24,3 +24,11 @@ Decision:
 - Do not repair this generator in M0.
 - Rebuild or replace the prototype generation workflow during M4 GUI/UX
   redesign if a reproducible prototype is still needed.
+
+M2 review:
+
+- Rechecked on 2026-05-19 during source reliability audit.
+- The broken scripts remain outside the active source path, so
+  `python -m compileall engine cli gui scripts` does not include them.
+- No additional repair is needed before M4 because `prototype.html` remains
+  the active static prototype reference.

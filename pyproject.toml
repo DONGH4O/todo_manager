@@ -15,7 +15,6 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
-    "pytest-qt>=4.4",
     "pyinstaller>=6.0",
 ]
 
@@ -29,7 +28,11 @@ packages = [
     "todo_manager.engine",
     "todo_manager.cli",
     "todo_manager.gui",
-    "todo_manager.gui.widgets",
+]
+
+[tool.setuptools.package-data]
+todo_manager = [
+    "assets/icons/*",
 ]
 
 [tool.setuptools.package-dir]

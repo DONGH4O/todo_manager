@@ -1,160 +1,219 @@
-"""Build script - package CLI + GUI as standalone exe.
+"""Build cross-platform release artifacts for Todo Manager.
 
 Usage:
-    python scripts/build.py           # Build all
-    python scripts/build.py cli       # CLI only
-    python scripts/build.py gui       # GUI only
-    python scripts/build.py zip       # ZIP packaging only
+    python scripts/build.py all
+    python scripts/build.py cli
+    python scripts/build.py gui
+    python scripts/build.py react
+    python scripts/build.py zip
+    python scripts/build.py smoke
 
-Output:
-    dist/TodoManager/
-    ├── todo.exe
-    ├── todo-gui.exe
-    └── Readme.txt
+The script builds the current host platform only. Run it once on Windows and
+once on macOS to produce the two supported release bundles.
 """
 
-import os
+from __future__ import annotations
+
+import argparse
 import shutil
 import subprocess
 import sys
 import zipfile
+from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
 
-ROOT = Path(__file__).parent.parent
-DIST = ROOT / 'dist' / 'TodoManager'
-RELEASE_DIR = ROOT / 'dist'
+ROOT = Path(__file__).resolve().parent.parent
+DIST_ROOT = ROOT / "dist"
+APP_DIR_NAME = "TodoManager"
+DIST = DIST_ROOT / APP_DIR_NAME
+BUILD_ROOT = ROOT / "build"
+FRONTEND_ROOT = ROOT / "frontend"
+REACT_DESKTOP_DIR = DIST / "desktop-react"
 
 
-def run(cmd: list, description: str = ""):
-    """Run command, exit on failure."""
+@dataclass(frozen=True)
+class PlatformProfile:
+    key: str
+    display_name: str
+    cli_artifact: str
+    gui_artifact: str
+    data_dir_hint: str
+    gui_launch_hint: str
+    signing_note: str
+    include_install_bat: bool
+
+
+WINDOWS_PROFILE = PlatformProfile(
+    key="windows",
+    display_name="Windows",
+    cli_artifact="todo.exe",
+    gui_artifact="todo-gui.exe",
+    data_dir_hint=r"%APPDATA%\TodoManager\data\tasks.json",
+    gui_launch_hint="Double-click todo-gui.exe or run it from PowerShell to start the React desktop GUI.",
+    signing_note="This M6 build script does not apply Authenticode signing.",
+    include_install_bat=True,
+)
+
+MACOS_PROFILE = PlatformProfile(
+    key="macos",
+    display_name="macOS",
+    cli_artifact="todo",
+    gui_artifact="TodoManager.app",
+    data_dir_hint="~/Library/Application Support/TodoManager/data/tasks.json",
+    gui_launch_hint="Run open TodoManager.app, or open the app bundle in Finder to start the React desktop GUI.",
+    signing_note="This M6 build script creates an unsigned, unnotarized .app.",
+    include_install_bat=False,
+)
+
+
+def profile_for_platform(sys_platform: str | None = None) -> PlatformProfile:
+    value = (sys_platform or sys.platform).lower()
+    if value in {"windows", "win32"} or value.startswith("win"):
+        return WINDOWS_PROFILE
+    if value in {"macos", "darwin"}:
+        return MACOS_PROFILE
+    raise SystemExit(
+        "Unsupported build host. M6 release builds support Windows and macOS only."
+    )
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "target",
+        nargs="?",
+        default="all",
+        choices=("all", "cli", "gui", "react", "zip", "smoke"),
+        help="Release target to build or validate.",
+    )
+    parser.add_argument(
+        "--skip-smoke",
+        action="store_true",
+        help="Do not run scripts/smoke_release.py after an all/zip build.",
+    )
+    return parser.parse_args(argv)
+
+
+def run(cmd: list[str], description: str = "", *, cwd: Path = ROOT) -> None:
     if description:
         print(f"  {description}...")
-    result = subprocess.run(cmd, cwd=str(ROOT), capture_output=False)
+    sys.stdout.flush()
+    result = subprocess.run(cmd, cwd=str(cwd), check=False)
     if result.returncode != 0:
-        print(f"\n[FAIL] exit code {result.returncode}")
-        sys.exit(result.returncode)
+        raise SystemExit(result.returncode)
 
 
-def clean_dist():
-    """Clean output directory."""
+def require_pyinstaller() -> None:
+    try:
+        import PyInstaller  # noqa: F401
+    except ImportError as exc:
+        raise SystemExit(
+            "PyInstaller is not installed. Run: python -m pip install -e .[dev]"
+        ) from exc
+
+
+def clean_dist() -> None:
     if DIST.exists():
         shutil.rmtree(DIST)
     DIST.mkdir(parents=True, exist_ok=True)
-    print("[OK] Cleaned output directory")
+    print(f"[OK] Cleaned {DIST}")
 
 
-def build_cli():
-    """PyInstaller build CLI."""
-    print("\n[BUILD] CLI - todo.exe")
-    run([
-        sys.executable, '-m', 'PyInstaller',
-        'build_cli.spec',
-        '--distpath', str(DIST),
-        '--workpath', str(ROOT / 'build' / 'cli'),
-        '--noconfirm',
-    ], "PyInstaller CLI")
-    print("[OK] todo.exe built")
+def build_cli(profile: PlatformProfile) -> None:
+    print(f"\n[BUILD] CLI - {profile.cli_artifact}")
+    run(
+        [
+            sys.executable,
+            "-m",
+            "PyInstaller",
+            "build_cli.spec",
+            "--distpath",
+            str(DIST),
+            "--workpath",
+            str(BUILD_ROOT / f"{profile.key}-cli"),
+            "--noconfirm",
+        ],
+        "PyInstaller CLI",
+    )
+    print(f"[OK] {profile.cli_artifact} built")
 
 
-def build_gui():
-    """PyInstaller build GUI."""
-    print("\n[BUILD] GUI - todo-gui.exe")
-    run([
-        sys.executable, '-m', 'PyInstaller',
-        'build_gui.spec',
-        '--distpath', str(DIST),
-        '--workpath', str(ROOT / 'build' / 'gui'),
-        '--noconfirm',
-    ], "PyInstaller GUI")
-    print("[OK] todo-gui.exe built")
+def build_gui(profile: PlatformProfile) -> None:
+    print(f"\n[BUILD] GUI - {profile.gui_artifact}")
+    run(
+        [
+            sys.executable,
+            "-m",
+            "PyInstaller",
+            "build_gui.spec",
+            "--distpath",
+            str(DIST),
+            "--workpath",
+            str(BUILD_ROOT / f"{profile.key}-gui"),
+            "--noconfirm",
+        ],
+        "PyInstaller GUI",
+    )
+    print(f"[OK] {profile.gui_artifact} built")
 
 
-def create_readme():
-    """Generate usage guide."""
-    readme = DIST / 'Readme.txt'
+def create_readme(profile: PlatformProfile) -> None:
+    DIST.mkdir(parents=True, exist_ok=True)
+    readme = DIST / "Readme.txt"
     today = date.today().isoformat()
-    appdata = r'%APPDATA%\TodoManager\data\tasks.json'
 
-    text = f"""Todo Manager - Readme
+    text = f"""Todo Manager Release
 {"=" * 48}
-Version: {today}
+Platform: {profile.display_name}
+Build date: {today}
 
-[Quick Start]
-  1. Extract this zip to any folder (e.g. D:\\TodoManager)
-  2. Double-click todo-gui.exe to launch the GUI
-  3. Or run todo.exe in a terminal
+Artifacts
+---------
+- CLI: {profile.cli_artifact}
+- GUI: {profile.gui_artifact}
+- React desktop assets: desktop-react/
+- Application icon: embedded from assets/icons/todo-manager.*
 
-[CLI Commands]
-  todo add "Task Title" -s 2026-05-01 -e 2026-05-15
-         --status <status> -b "background"
-  todo list                     [-d YYYY-MM-DD] [--deleted]
-  todo show <task-id>           [--history N]
-  todo edit <task-id>           [-t title] [-s start] [-e end]
-                                [--status s] [-b bg] [-f]
-  todo delete <task-id>         [-f]
-  todo undo <task-id>           [-f]
-  todo sub add <task-id> "title"  [-s start] [-e end] [--status s] [-b bg]
-  todo sub list <task-id>
-  todo sub show <task-id> <sub-id>  [--history N]
-  todo sub edit <task-id> <sub-id>  [-t title] [-s start] [-e end]
-                                    [--status s] [-b bg] [-f]
-  todo sub delete <task-id> <sub-id>  [-f]
-  todo sub undo <task-id> <sub-id>    [-f]
-  todo cal                      [YYYY-MM]
-  todo search <keyword>
-  todo stats
+Quick Start
+-----------
+1. Extract the complete zip before running the app.
+2. CLI help: {profile.cli_artifact} --help
+3. GUI: {profile.gui_launch_hint}
+4. Compatibility launcher: run todo-react.bat on Windows or ./todo-react on macOS.
 
-  Status values: 未启动 / 完成中 / 已完成 / 已取消
-  -f: skip confirmation    Full help: todo --help
+Data Storage
+------------
+Default data file:
+  {profile.data_dir_hint}
 
-[Add to PATH] (optional)
-  Right-click install.bat and run as Administrator to add
-  the current directory to your system PATH.
-  Then you can run 'todo' from any terminal.
+Use --data-dir <path> for an isolated data directory during smoke tests.
 
-[Data Storage]
-  All task data is stored at:
-    {appdata}
-  To uninstall, simply delete the extracted folder.
-  To keep your data, back up the tasks.json file above.
+Signing / Notarization
+----------------------
+{profile.signing_note}
 
-[FAQ]
-  Q: todo.exe flashes and disappears when double-clicked?
-  A: todo.exe is a CLI tool. Run it in cmd or PowerShell.
-  Q: GUI shows no data?
-  A: CLI and GUI share the same data file.
-  Q: "Missing DLL" error?
-  A: Ensure you extracted the complete zip. todo-gui.exe
-     requires the _internal folder in the same directory.
+Release Validation
+------------------
+Run this from the source checkout after building:
+  python scripts/smoke_release.py --platform {profile.key} --release-dir dist/{APP_DIR_NAME}
 """
-    readme.write_text(text, encoding='utf-8')
+    readme.write_text(text, encoding="utf-8")
     print("[OK] Readme.txt")
 
 
-def create_install_bat():
-    """Generate PATH installer script."""
-    bat = DIST / 'install.bat'
+def create_install_bat() -> None:
+    bat = DIST / "install.bat"
     content = r"""@echo off
 chcp 65001 >nul
 echo ============================================
-echo   Todo Manager - Add to System PATH
+echo   Todo Manager - Add to User PATH
 echo ============================================
 echo.
 echo Current directory: %~dp0
 echo.
 
-:: Request admin privileges
-net session >nul 2>&1
-if %errorlevel% neq 0 (
-    echo Administrator privileges required to modify PATH.
-    echo Requesting elevation...
-    powershell -Command "Start-Process '%~f0' -Verb RunAs"
-    exit /b
-)
-
-:: Add current directory to user PATH
 set "TARGET_DIR=%~dp0"
 set "TARGET_DIR=%TARGET_DIR:~0,-1%"
 
@@ -171,73 +230,171 @@ if %errorlevel% equ 0 (
 )
 
 echo.
-echo Done! Reopen your terminal and type: todo --help
+echo Done. Reopen your terminal and run: todo --help
 echo.
 pause
 """
-    bat.write_text(content, encoding='gbk')
+    bat.write_text(content, encoding="utf-8")
     print("[OK] install.bat")
 
 
-def create_zip():
-    """Package as zip."""
-    print("\n[ZIP] Packaging...")
-    zip_name = f"TodoManager_{date.today().isoformat()}.zip"
-    zip_path = RELEASE_DIR / zip_name
+def npm_command() -> str:
+    return "npm.cmd" if sys.platform.startswith("win") else "npm"
 
-    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
-        for file_path in DIST.rglob('*'):
+
+def copy_react_desktop_assets(profile: PlatformProfile) -> None:
+    out_dir = FRONTEND_ROOT / "out"
+    if not out_dir.exists():
+        raise SystemExit("React static export is missing. Run npm run build in frontend/.")
+
+    if REACT_DESKTOP_DIR.exists():
+        shutil.rmtree(REACT_DESKTOP_DIR)
+    (REACT_DESKTOP_DIR / "ui").mkdir(parents=True, exist_ok=True)
+
+    shutil.copytree(
+        out_dir,
+        REACT_DESKTOP_DIR / "ui",
+        dirs_exist_ok=True,
+        ignore=shutil.ignore_patterns("node_modules", ".next", "*.tsbuildinfo"),
+    )
+
+    manifest = REACT_DESKTOP_DIR / "manifest.json"
+    manifest.write_text(
+        (
+            "{\n"
+            '  "name": "Todo Manager React Desktop",\n'
+            '  "shell": "PySide6 QtWebEngine",\n'
+            '  "renderer": "ui/index.html",\n'
+            '  "bridge": "CLI JSON contract",\n'
+            '  "launcher": "todo-gui",\n'
+            f'  "platform": "{profile.key}"\n'
+            "}\n"
+        ),
+        encoding="utf-8",
+    )
+    print("[OK] desktop-react assets")
+
+
+def create_react_launcher(profile: PlatformProfile) -> None:
+    DIST.mkdir(parents=True, exist_ok=True)
+    if profile.key == "windows":
+        launcher = DIST / "todo-react.bat"
+        launcher.write_text(
+            r"""@echo off
+chcp 65001 >nul
+set "APP_DIR=%~dp0"
+"%APP_DIR%todo-gui.exe" %*
+""",
+            encoding="utf-8",
+        )
+    else:
+        launcher = DIST / "todo-react"
+        launcher.write_text(
+            """#!/usr/bin/env bash
+set -euo pipefail
+APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+"${APP_DIR}/TodoManager.app/Contents/MacOS/todo-gui" "$@"
+""",
+            encoding="utf-8",
+        )
+        launcher.chmod(0o755)
+    print(f"[OK] {launcher.name}")
+
+
+def build_react_desktop(profile: PlatformProfile) -> None:
+    print("\n[BUILD] React desktop renderer")
+    if not (FRONTEND_ROOT / "package.json").exists():
+        raise SystemExit("frontend/package.json is missing")
+    DIST.mkdir(parents=True, exist_ok=True)
+    run([npm_command(), "run", "build:desktop"], "Next static export", cwd=FRONTEND_ROOT)
+    copy_react_desktop_assets(profile)
+
+
+def create_release_metadata(profile: PlatformProfile) -> None:
+    create_readme(profile)
+    if profile.include_install_bat:
+        create_install_bat()
+    create_react_launcher(profile)
+
+
+def create_zip(profile: PlatformProfile) -> Path:
+    if not DIST.exists():
+        raise SystemExit(f"Release directory does not exist: {DIST}")
+
+    print("\n[ZIP] Packaging release directory...")
+    zip_name = f"{APP_DIR_NAME}-{profile.key}-{date.today().isoformat()}.zip"
+    zip_path = DIST_ROOT / zip_name
+    if zip_path.exists():
+        zip_path.unlink()
+
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+        for file_path in sorted(DIST.rglob("*")):
             if file_path.is_file():
-                arcname = str(file_path.relative_to(DIST))
-                zf.write(file_path, arcname)
+                arcname = Path(APP_DIR_NAME) / file_path.relative_to(DIST)
+                zf.write(file_path, arcname.as_posix())
 
     size_mb = zip_path.stat().st_size / (1024 * 1024)
     print(f"[OK] {zip_name} ({size_mb:.1f} MB)")
     return zip_path
 
 
-def main():
-    target = sys.argv[1] if len(sys.argv) > 1 else "all"
+def run_release_smoke(profile: PlatformProfile, zip_path: Path | None = None) -> None:
+    cmd = [
+        sys.executable,
+        str(ROOT / "scripts" / "smoke_release.py"),
+        "--platform",
+        profile.key,
+        "--release-dir",
+        str(DIST),
+    ]
+    if zip_path is not None:
+        cmd.extend(["--zip", str(zip_path)])
+    run(cmd, "Release smoke")
 
-    if target not in ("all", "cli", "gui", "zip"):
-        print(f"Usage: python {__file__} [all|cli|gui|zip]")
-        sys.exit(1)
 
-    print("=" * 50)
-    print("  Todo Manager - Build Tool")
-    print("=" * 50)
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
+    profile = profile_for_platform()
+    zip_path: Path | None = None
+
+    print("=" * 52)
+    print(f"  Todo Manager - {profile.display_name} Release Build")
+    print("=" * 52)
 
     try:
-        import PyInstaller  # noqa: F401
-    except ImportError:
-        print("[FAIL] PyInstaller not installed. Run: pip install pyinstaller")
-        sys.exit(1)
+        if args.target in {"all", "cli", "gui"}:
+            require_pyinstaller()
 
-    # Clean once at the start (except for zip-only builds)
-    if target != "zip":
-        clean_dist()
+        if args.target in {"all", "cli", "gui"}:
+            clean_dist()
 
-    if target in ("all", "cli"):
-        build_cli()
-    if target in ("all", "gui"):
-        build_gui()
-    if target in ("all", "gui", "cli"):
-        create_readme()
-        create_install_bat()
-    if target in ("all", "zip"):
-        zip_path = create_zip()
-        print(f"\n[DONE] Release package: {zip_path}")
+        if args.target in {"all", "cli"}:
+            build_cli(profile)
+        if args.target in {"all", "gui"}:
+            build_gui(profile)
+        if args.target in {"all", "cli", "gui", "react"}:
+            create_release_metadata(profile)
+        if args.target in {"all", "react"}:
+            build_react_desktop(profile)
+        if args.target in {"all", "zip"}:
+            zip_path = create_zip(profile)
+        if args.target == "smoke":
+            run_release_smoke(profile)
+        if args.target in {"all", "zip"} and not args.skip_smoke:
+            run_release_smoke(profile, zip_path)
 
-    if target == "all":
-        print(f"\n[DONE] Build complete! Output: {DIST}")
-        print(f"  todo.exe      - CLI")
-        print(f"  todo-gui.exe  - GUI")
+        if args.target == "all":
+            print(f"\n[DONE] Build complete: {DIST}")
+            print(f"  CLI: {profile.cli_artifact}")
+            print(f"  GUI: {profile.gui_artifact}")
+            print("  React desktop assets: desktop-react/")
+            if zip_path:
+                print(f"  Zip: {zip_path}")
+    finally:
+        if BUILD_ROOT.exists():
+            shutil.rmtree(BUILD_ROOT)
+    return 0
 
-    # Clean up build temp
-    build_dir = ROOT / 'build'
-    if build_dir.exists():
-        shutil.rmtree(build_dir)
 
-
-if __name__ == '__main__':
-    main()
+if __name__ == "__main__":
+    raise SystemExit(main())

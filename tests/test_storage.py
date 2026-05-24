@@ -3,9 +3,16 @@
 import json
 import os
 import tempfile
+from pathlib import Path
 import pytest
 from todo_manager.engine.models import Task
-from todo_manager.engine.storage import load_tasks, save_tasks, set_data_dir
+from todo_manager.engine.storage import (
+    DataFileError,
+    DataWriteError,
+    load_tasks,
+    save_tasks,
+    set_data_dir,
+)
 
 
 @pytest.fixture
@@ -42,8 +49,27 @@ class TestLoadTasks:
         with open(path, "w", encoding="utf-8") as f:
             f.write("这不是合法的 JSON {{{")
 
-        tasks = load_tasks()
-        assert tasks == []
+        with pytest.raises(DataFileError) as exc_info:
+            load_tasks()
+
+        assert "不是合法 JSON" in str(exc_info.value)
+        backups = list(Path(temp_data_dir).glob("tasks.json.corrupt-*.bak"))
+        assert len(backups) == 1
+        assert backups[0].read_text(encoding="utf-8") == "这不是合法的 JSON {{{"
+        assert Path(path).read_text(encoding="utf-8") == "这不是合法的 JSON {{{"
+
+    def test_invalid_tasks_schema_is_diagnosed(self, temp_data_dir):
+        path = Path(temp_data_dir) / "tasks.json"
+        path.write_text(
+            json.dumps({"version": 2, "tasks": {"bad": "shape"}}, ensure_ascii=False),
+            encoding="utf-8",
+        )
+
+        with pytest.raises(DataFileError) as exc_info:
+            load_tasks()
+
+        assert "tasks 字段无效" in str(exc_info.value)
+        assert list(Path(temp_data_dir).glob("tasks.json.corrupt-*.bak"))
 
 
 class TestSaveTasks:
@@ -103,6 +129,7 @@ class TestSaveTasks:
         save_tasks([task])
         tmp_path = os.path.join(temp_data_dir, "tasks.json.tmp")
         assert not os.path.exists(tmp_path)
+        assert not list(Path(temp_data_dir).glob("tasks.json.*.tmp"))
         assert os.path.isfile(os.path.join(temp_data_dir, "tasks.json"))
 
     def test_atomic_write_preserves_data(self, temp_data_dir):
@@ -136,3 +163,35 @@ class TestSaveTasks:
         assert len(loaded) == 2
         ids = {t.id for t in loaded}
         assert ids == {"conc-a", "conc-b"}
+
+    def test_stale_temp_files_cleaned_after_success(self, temp_data_dir):
+        """成功写入后清理历史遗留临时文件，但不让清理影响本次写入。"""
+        Path(temp_data_dir, "tasks.json.tmp").write_text("old", encoding="utf-8")
+        Path(temp_data_dir, "tasks.json.123.tmp").write_text("old", encoding="utf-8")
+
+        save_tasks([])
+
+        assert not list(Path(temp_data_dir).glob("tasks.json*.tmp"))
+
+    def test_atomic_write_failure_preserves_existing_file(self, temp_data_dir, monkeypatch):
+        """替换失败时旧 tasks.json 应保持可读，临时文件应尽力清理。"""
+        old_task = Task(id="old", title="旧数据",
+                        start_date="2026-05-01", end_date="2026-05-10",
+                        status="未启动", background="")
+        new_task = Task(id="new", title="新数据",
+                        start_date="2026-06-01", end_date="2026-06-10",
+                        status="完成中", background="")
+        save_tasks([old_task])
+
+        def fail_replace(_src, _dst):
+            raise OSError("simulated replace failure")
+
+        monkeypatch.setattr("todo_manager.engine.storage.os.replace", fail_replace)
+
+        with pytest.raises(DataWriteError):
+            save_tasks([new_task])
+
+        path = Path(temp_data_dir) / "tasks.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        assert [item["id"] for item in data["tasks"]] == ["old"]
+        assert not list(Path(temp_data_dir).glob("tasks.json.*.tmp"))

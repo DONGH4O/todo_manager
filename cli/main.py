@@ -8,7 +8,18 @@
 import argparse
 import sys
 
-from todo_manager.engine.storage import clear_data_dir, set_data_dir
+from todo_manager.engine.storage import StorageError, clear_data_dir, set_data_dir
+from todo_manager.cli.contract import (
+    CliExit,
+    EXIT_DATA_FILE,
+    EXIT_INTERNAL,
+    EXIT_INTERRUPTED,
+    EXIT_SUCCESS,
+    EXIT_USAGE,
+    emit_error,
+    is_json_mode,
+    set_json_mode,
+)
 from todo_manager.cli.commands import (
     cmd_add, cmd_list, cmd_show, cmd_edit, cmd_delete, cmd_undo,
     cmd_sub_add, cmd_sub_list, cmd_sub_show, cmd_sub_edit,
@@ -17,8 +28,47 @@ from todo_manager.cli.commands import (
 )
 
 
+class _GlobalOptionError(ValueError):
+    pass
+
+
+class TodoArgumentParser(argparse.ArgumentParser):
+    def error(self, message: str) -> None:
+        if is_json_mode():
+            emit_error("usage_error", message)
+            raise SystemExit(EXIT_USAGE)
+        super().error(message)
+
+
+def _extract_global_options(argv: list[str]) -> tuple[list[str], str | None, bool]:
+    """Allow --json and --data-dir before or after subcommands."""
+    json_mode = False
+    data_dir = None
+    remaining: list[str] = []
+    i = 0
+    while i < len(argv):
+        token = argv[i]
+        if token == "--json":
+            json_mode = True
+            i += 1
+            continue
+        if token == "--data-dir":
+            if i + 1 >= len(argv):
+                raise _GlobalOptionError("argument --data-dir: expected one argument")
+            data_dir = argv[i + 1]
+            i += 2
+            continue
+        if token.startswith("--data-dir="):
+            data_dir = token.split("=", 1)[1]
+            i += 1
+            continue
+        remaining.append(token)
+        i += 1
+    return remaining, data_dir, json_mode
+
+
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
+    parser = TodoArgumentParser(
         prog="todo",
         description="命令行待办事项管理器",
     )
@@ -26,6 +76,11 @@ def _build_parser() -> argparse.ArgumentParser:
         "--data-dir",
         default=None,
         help="指定数据目录（默认开发态为项目 data，打包后为系统应用数据目录）",
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="以稳定 JSON envelope 输出结果；错误 JSON 输出到 stderr",
     )
 
     sub = parser.add_subparsers(dest="command", title="命令")
@@ -146,12 +201,30 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    original_argv = list(sys.argv[1:] if argv is None else argv)
+    json_seen = "--json" in original_argv
+    set_json_mode(json_seen)
+    try:
+        normalized_argv, data_dir, json_mode = _extract_global_options(original_argv)
+    except _GlobalOptionError as exc:
+        if json_seen:
+            emit_error("usage_error", str(exc))
+        else:
+            print(f"todo: error: {exc}", file=sys.stderr)
+        return EXIT_USAGE
+
+    set_json_mode(json_mode)
     parser = _build_parser()
-    args = parser.parse_args(argv)
+    args = parser.parse_args(normalized_argv)
+    args.data_dir = data_dir
+    args.json = json_mode
 
     if not hasattr(args, "func"):
+        if args.json:
+            emit_error("usage_error", "missing command")
+            return EXIT_USAGE
         parser.print_help()
-        return 0
+        return EXIT_SUCCESS
 
     # 初始化数据目录
     if args.data_dir:
@@ -160,8 +233,33 @@ def main(argv: list[str] | None = None) -> int:
         clear_data_dir()
 
     # 分发执行
-    args.func(args)
-    return 0
+    try:
+        args.func(args)
+    except CliExit as exc:
+        return exc.exit_code
+    except StorageError as exc:
+        if args.json:
+            emit_error("data_file_error", str(exc))
+        else:
+            print(f"错误: {exc}", file=sys.stderr)
+        return EXIT_DATA_FILE
+    except KeyboardInterrupt:
+        if args.json:
+            emit_error("internal_error", "操作被中断", details={"signal": "KeyboardInterrupt"})
+        else:
+            print("", file=sys.stderr)
+        return EXIT_INTERRUPTED
+    except Exception as exc:
+        if args.json:
+            emit_error(
+                "internal_error",
+                "命令执行失败",
+                details={"type": type(exc).__name__},
+            )
+        else:
+            print(f"错误: 命令执行失败: {exc}", file=sys.stderr)
+        return EXIT_INTERNAL
+    return EXIT_SUCCESS
 
 
 if __name__ == "__main__":

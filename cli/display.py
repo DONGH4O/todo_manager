@@ -255,14 +255,15 @@ def format_history(records: List[VersionRecord], max_n: int = 5) -> str:
     if not records:
         return "历史记录: (无)"
 
-    # 取最近 max_n 条（列表末尾即最新）
-    recent = records[-max_n:]
+    # 取最近 max_n 条并按“最新在前”展示，更符合 CLI 快速审计习惯。
+    selected = list(enumerate(records))[-max_n:]
+    recent = list(reversed(selected))
 
-    lines = [f"历史记录 (最近{len(recent)}条):"]
-    for i, rec in enumerate(recent):
+    lines = [f"历史记录 (最近{len(recent)}条，最新在前):"]
+    for original_idx, rec in recent:
         lines.append(f"  v{rec.version}  {rec.changed_at}")
 
-        if i == 0:
+        if original_idx == 0:
             # 初始版本：直接列出所有初始值
             lines.append(f"      [初始创建]")
             lines.append(f"      标题: {rec.title}")
@@ -271,7 +272,7 @@ def format_history(records: List[VersionRecord], max_n: int = 5) -> str:
             lines.append(f"      背景: {rec.background or '(无)'}")
         else:
             # 后续版本：对比上一版本
-            prev = recent[i - 1]
+            prev = records[original_idx - 1]
 
             t_changed = rec.title != prev.title
             s_changed = rec.status != prev.status

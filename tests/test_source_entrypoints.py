@@ -53,6 +53,22 @@ def test_cli_source_module_data_dir_smoke(tmp_path):
     assert (tmp_path / "tasks.json").is_file()
 
 
+def test_cli_source_module_reports_corrupt_data(tmp_path):
+    (tmp_path / "tasks.json").write_text("broken {{{", encoding="utf-8")
+
+    result = _run_source_module(
+        "todo_manager.cli",
+        "--data-dir",
+        str(tmp_path),
+        "list",
+    )
+
+    assert result.returncode == 5
+    assert result.stdout == ""
+    assert "不是合法 JSON" in result.stderr
+    assert list(tmp_path.glob("tasks.json.corrupt-*.bak"))
+
+
 def test_gui_source_module_help_smoke():
     result = _run_source_module("todo_manager.gui", "--help")
 

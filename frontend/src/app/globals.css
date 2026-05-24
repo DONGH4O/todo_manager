@@ -1,0 +1,183 @@
+@import "react-day-picker/style.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root,
+:root[data-theme="light"] {
+  --color-bg-a: #dff4ff;
+  --color-bg-b: #dff8ec;
+  --color-bg-c: #eef2f5;
+  --color-surface: rgba(255, 255, 255, 0.84);
+  --color-surface-soft: rgba(255, 255, 255, 0.68);
+  --color-surface-strong: #ffffff;
+  --color-dropdown: #ffffff;
+  --color-ink: #123047;
+  --color-muted: #6a7d8e;
+  --color-line: rgba(98, 132, 154, 0.18);
+  --color-line-strong: rgba(73, 121, 151, 0.34);
+  --color-primary: #2e8df5;
+  --color-primary-soft: #e8f4ff;
+  --color-secondary: #23b883;
+  --color-secondary-soft: #e8f8f0;
+  --color-tertiary: #d69b18;
+  --color-tertiary-soft: #fff5d9;
+  --color-danger: #e05858;
+  --color-danger-soft: #fff0f0;
+  --color-neutral-silver: #eef3f6;
+}
+
+:root[data-theme="dark"] {
+  --color-bg-a: #07131d;
+  --color-bg-b: #0e2230;
+  --color-bg-c: #142a38;
+  --color-surface: #102636;
+  --color-surface-soft: #132d3d;
+  --color-surface-strong: #193546;
+  --color-dropdown: #102636;
+  --color-ink: #e8f3f8;
+  --color-muted: #94a8b7;
+  --color-line: rgba(146, 180, 198, 0.18);
+  --color-line-strong: rgba(146, 180, 198, 0.34);
+  --color-primary: #65b5ff;
+  --color-primary-soft: #173753;
+  --color-secondary: #4dd7a1;
+  --color-secondary-soft: #143c32;
+  --color-tertiary: #f0bf42;
+  --color-tertiary-soft: #46391b;
+  --color-danger: #ff7a7a;
+  --color-danger-soft: #44252a;
+  --color-neutral-silver: #203747;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  color: var(--color-ink);
+  font-family:
+    Inter,
+    "Noto Sans SC",
+    "Microsoft YaHei",
+    "PingFang SC",
+    system-ui,
+    sans-serif;
+  font-size: 14px;
+  letter-spacing: 0;
+}
+
+button,
+input,
+select,
+textarea {
+  appearance: none;
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+select {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] select {
+  color-scheme: dark;
+}
+
+.app-bg {
+  background:
+    radial-gradient(circle at 8px 8px, rgba(255, 255, 255, 0.28) 1px, transparent 1px),
+    linear-gradient(147deg, var(--color-bg-a) 0%, var(--color-bg-b) 33%, var(--color-bg-c) 71%);
+  background-size:
+    18px 18px,
+    cover;
+}
+
+@layer components {
+  .tm-panel {
+    @apply flex min-w-0 flex-col overflow-hidden rounded-default border border-line bg-surface shadow-panel backdrop-blur-glass;
+  }
+
+  .tm-button {
+    @apply inline-flex h-11 items-center justify-center rounded-default border border-line bg-surface-soft px-4 text-[13px] font-semibold text-ink transition hover:border-line-strong hover:bg-surface;
+  }
+
+  .tm-button-primary {
+    @apply inline-flex h-11 items-center justify-center rounded-default border border-line px-4 text-[13px] font-semibold text-white transition hover:brightness-105;
+    background-image: linear-gradient(152deg, var(--color-primary) 0%, var(--color-secondary) 70%);
+  }
+
+  .tm-button-danger {
+    @apply inline-flex h-11 items-center justify-center rounded-default border px-4 text-[13px] font-semibold text-danger transition hover:brightness-105;
+    border-color: rgba(224, 88, 88, 0.24);
+    background: var(--color-danger-soft);
+  }
+
+  .tm-icon-button {
+    @apply grid size-[38px] place-items-center rounded-default border border-line bg-surface-soft text-[20px] font-bold leading-none text-ink transition hover:border-line-strong hover:bg-surface;
+  }
+
+  .tm-input {
+    @apply rounded-default border border-line bg-surface-soft px-3 text-[13px] font-normal text-ink outline-none transition placeholder:text-muted focus:border-primary focus:shadow-focus;
+  }
+
+  .tm-select {
+    @apply rounded-default border border-line bg-surface-soft px-3 text-[13px] font-medium text-ink outline-none transition focus:border-primary focus:shadow-focus;
+  }
+
+  .tm-field {
+    @apply grid gap-2 text-[12px] font-bold text-muted;
+  }
+}
+
+.tm-date-popover .rdp-root {
+  --rdp-accent-color: var(--color-primary);
+  --rdp-accent-background-color: var(--color-primary-soft);
+  --rdp-day-height: 34px;
+  --rdp-day-width: 34px;
+  --rdp-day_button-height: 32px;
+  --rdp-day_button-width: 32px;
+  --rdp-day_button-border-radius: 8px;
+  --rdp-nav_button-height: 30px;
+  --rdp-nav_button-width: 30px;
+  --rdp-nav-height: 34px;
+  color: var(--color-ink);
+  font-size: 12px;
+}
+
+.tm-date-popover .rdp-months {
+  max-width: 100%;
+}
+
+.tm-date-popover .rdp-month {
+  width: 100%;
+}
+
+.tm-date-popover .rdp-month_grid {
+  width: 100%;
+}
+
+.tm-date-popover .rdp-month_caption {
+  font-size: 13px;
+}
+
+.tm-date-popover .rdp-day_button:hover {
+  background: var(--color-primary-soft);
+}

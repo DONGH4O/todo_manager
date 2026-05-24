@@ -77,3 +77,8 @@ todo-gui --data-dir C:\path\to\data
 - macOS 源码 CLI 实际运行。
 - macOS GUI 实际启动、中文显示与点击交互。
 - macOS 冻结态打包产物路径行为。
+
+M6 更新：
+
+- Windows 冻结态 CLI/GUI 已通过 `scripts/build.py all` 与 `scripts/smoke_release.py` 验证。
+- macOS `.app` 打包配置已建立，仍需 macOS 原生构建和实机启动验证。

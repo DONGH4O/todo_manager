@@ -1,1 +1,1 @@
-# D3 GUI 模块 — PySide6 图形化用户界面
+# GUI package. The active desktop UI is the React shell hosted by QtWebEngine.
