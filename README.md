@@ -95,6 +95,8 @@ GUI 测试默认使用 Qt offscreen 模式，不需要桌面窗口交互。
 
 ## GitHub Actions / CI
 
+Public repo: [DONGH4O/todo_manager](https://github.com/DONGH4O/todo_manager)
+
 M7 起仓库包含 `.github/workflows/ci.yml`，用于在 GitHub Actions 上持续验证 Windows 与 macOS：
 
 - 安装 Python package 并运行 `compileall`、全量 `pytest`。

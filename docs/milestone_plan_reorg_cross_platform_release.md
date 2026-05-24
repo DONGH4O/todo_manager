@@ -8,7 +8,7 @@
 > - 2026-05-24：正式发布界面目标调整为桌面应用形态的 React 前端；M6 既有 PyInstaller/PySide6 release 基线保留为历史交付，后续通过 M6.5/M7/M10 将 React 纳入正式桌面发布链路，不规划 Web 端发布。
 > - 2026-05-24：新增 M6.6 应用图标与桌面品牌资产，在 M6.5 React 桌面发布界面基础上补齐 Windows/macOS GUI 任务栏、桌面和 `.app` 品牌图标。
 > - 2026-05-24：React GUI 切换为默认 `todo-gui` 入口；旧 PySide6 widget GUI 归档到 `archive/legacy-pyside6-gui/`，后续里程碑不再围绕旧 GUI 开发或验收。
-> - 2026-05-24：M7 本地 CI 工程面已落地，新增 GitHub Actions workflow、React 桌面 release dry-run 和 release checklist；GitHub repo 创建、主分支推送与真实 Actions 通过仍待远端补证。
+> - 2026-05-25：M7 完成。Public GitHub repo 已创建并推送 `main`，GitHub Actions 已在 Windows/macOS 通过；repo URL 为 `https://github.com/DONGH4O/todo_manager`。
 
 ## 1. 执行原则
 
@@ -354,14 +354,14 @@
 
 ### M7. GitHub 与 CI
 
-状态：本地可完成项已完成（2026-05-24）。`.github/workflows/ci.yml` 已覆盖 Windows/macOS Python 回归、CLI/GUI 入口 smoke、React lint/typecheck/build/audit 和 React 桌面 release dry-run；`docs/release_checklist.md` 与 `docs/m7_validation_report.md` 已新增。GitHub repo URL、主分支推送和 Actions 真实通过待项目 owner 使用 GitHub 凭证补证。
+状态：已完成（2026-05-25）。Public GitHub repo 已创建：`https://github.com/DONGH4O/todo_manager`；`main` 已推送；GitHub Actions run `26367268744` 已在 Windows/macOS 通过。验证记录见 `docs/m7_validation_report.md`。
 
 目标：让协作和发布可持续。
 
 任务：
 
-- 创建 GitHub repo（待远端补证）。
-- 推送主分支（待远端补证）。
+- 创建 GitHub repo。
+- 推送主分支。
 - 配置 GitHub Actions：
   - Windows 测试
   - macOS 测试
@@ -378,14 +378,14 @@
 - `.github/pull_request_template.md`
 - `docs/release_checklist.md`
 - `docs/m7_validation_report.md`
-- GitHub repo URL（待补）
+- GitHub repo URL：`https://github.com/DONGH4O/todo_manager`
 
 验收：
 
-- Windows CI 通过（待 GitHub Actions 运行补证）。
-- macOS CI 通过（待 GitHub Actions 运行补证）。
-- React 前端和桌面发布链路在 CI 中得到覆盖（workflow 已配置，真实 run 待补证）。
-- README 上的安装与测试命令在 CI 中得到覆盖（workflow 已配置，真实 run 待补证）。
+- Windows CI 通过。
+- macOS CI 通过。
+- React 前端和桌面发布链路在 CI 中得到覆盖。
+- README 上的安装与测试命令在 CI 中得到覆盖。
 
 ### M8. npm CLI 发布
 

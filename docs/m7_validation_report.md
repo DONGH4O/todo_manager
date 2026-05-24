@@ -2,7 +2,11 @@
 
 > 日期：2026-05-24  
 > 环境：Windows 11 x64，Python 3.14.0，本地 `.venv`，Node/npm 已安装  
-> 结论：M7 本地可完成项已完成。GitHub Actions workflow、CLI JSON smoke helper、React 桌面 release dry-run 和 release checklist 已落地；GitHub repo 创建、主分支推送、真实 Windows/macOS Actions run 仍需使用项目 owner 的 GitHub 凭证补证。
+> 结论：M7 已完成。Public GitHub repo 已创建并推送 `main`，GitHub Actions 已在 Windows 与 macOS 通过；GitHub Actions workflow、CLI JSON smoke helper、React 桌面 release dry-run 和 release checklist 均已落地。
+
+GitHub repo：<https://github.com/DONGH4O/todo_manager>  
+最终 CI run：<https://github.com/DONGH4O/todo_manager/actions/runs/26367268744>  
+最终验证提交：`d03a13390a3a2899161042cef540549ab5d97a2d`
 
 ## 1. 本轮交付
 
@@ -25,7 +29,7 @@
 | React 桌面发布链路 | `python scripts/build.py react` 与 `python scripts/smoke_release.py --react-only` |
 | release checklist | `docs/release_checklist.md` |
 | PR 检查说明 | `.github/pull_request_template.md` |
-| GitHub repo URL | 待创建远端仓库并回填 |
+| GitHub repo URL | <https://github.com/DONGH4O/todo_manager> |
 
 ## 3. 已执行本地验证
 
@@ -60,16 +64,16 @@ cd ..
 
 warning 仍为既有 `.pytest_cache` 写权限 warning，不影响本轮 M7 CI 工程面判断。
 
-## 4. 已知缺口
+## 4. 远端验证
 
-- 尚未创建 GitHub repo，因此无法提供 GitHub repo URL。
-- 尚未推送 `main`，无法取得真实 GitHub Actions run URL。
-- 本地仅验证 Windows host；macOS gate 已写入 workflow，需远端 Actions 或 macOS 实机补证。
-- M7 CI 当前执行 React desktop dry-run，不执行完整 PyInstaller 打包；完整 release 包验证仍按 `docs/release_process.md` 和 `docs/release_checklist.md` 在 M10/发布候选阶段执行。
+- Public repo 已创建：<https://github.com/DONGH4O/todo_manager>。
+- `main` 已推送，默认分支为 `main`。
+- 首次 CI run `26367108129` 在两平台 Python 段均通过，但 `npm ci` 因 `frontend/package-lock.json` 缺少 `@emnapi/core` / `@emnapi/runtime` package 条目失败。
+- 已用 npm 10.9.8 刷新 lockfile 并提交 `d03a133 fix: sync frontend lockfile for ci`。
+- 最终 CI run `26367268744` 通过：Windows job 与 macOS job 均完成 Python compileall、pytest、CLI/GUI smoke、React install/lint/typecheck/build/audit 和 React desktop release dry-run。
+- GitHub Actions 当前提示 Node.js 20 actions deprecation warning，属于 hosted Actions 运行器对 `actions/*@v4/v5` 的未来兼容提醒，不影响本轮 M7 通过结论。
 
-## 5. 下一步补证
+## 5. 剩余边界
 
-1. 创建 GitHub repo 并添加 remote。
-2. 推送 `main` 分支。
-3. 等待 GitHub Actions 在 Windows 与 macOS 跑完。
-4. 将 repo URL 与 CI run URL 回填到本报告或后续发布候选验收报告。
+- M7 CI 执行 React desktop dry-run，不执行完整 PyInstaller 打包；完整 release 包验证仍按 `docs/release_process.md` 和 `docs/release_checklist.md` 在 M10/发布候选阶段执行。
+- Windows/macOS 真实可见桌面窗口操作仍按 M6.5/M6.6 后续人工验收项补证。

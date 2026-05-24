@@ -3,7 +3,7 @@
 > 版本：v0.1  
 > 日期：2026-05-24  
 > 覆盖范围：M7 GitHub 与 CI、M10 发布候选验收前置清单  
-> GitHub repo URL：待创建并推送后补充
+> GitHub repo URL：<https://github.com/DONGH4O/todo_manager>
 
 本清单用于每次发布候选前确认源码、CI、React 桌面界面、发布包和文档处于同一状态。勾选项应以命令输出、CI run 链接、release zip 文件清单或人工验收记录为证据。
 
