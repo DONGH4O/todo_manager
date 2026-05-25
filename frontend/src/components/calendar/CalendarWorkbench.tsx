@@ -33,7 +33,7 @@ export function CalendarWorkbench({
 }: CalendarWorkbenchProps) {
   const days = buildCalendarDays(visibleYear, visibleMonth, tasks, selectedDate, today);
   const weekCount = Math.ceil(days.length / 7);
-  const selectedDateTaskCount = tasks.filter((task) => shouldShowTaskOnDate(selectedDate, task)).length;
+  const selectedDateTaskCount = tasks.filter((task) => shouldShowTaskOnDate(selectedDate, task, today)).length;
   const calendarGridStyle = {
     gridTemplateRows: `repeat(${weekCount}, minmax(96px, 1fr))`,
     minHeight: `${weekCount * 96 + (weekCount - 1) * 8}px`

@@ -8,28 +8,28 @@
 
 结论：确认存在规则退化，且影响 engine 与 React 前端两层。
 
-当前 engine 规则位于 `engine/task_manager.py::get_tasks_for_date`。现有实现只在 `date_str < 今天` 且 `date_str > end_date` 时补充展示逾期的 `未启动` / `完成中` 任务。这会导致两类应展示任务丢失：
+当前 engine 规则位于 `engine/task_manager.py::get_tasks_for_date`。重构后曾退化为仅按日期区间展示，第一轮修复又把 `未启动` / `完成中` 的逾期持续展示延伸到了未来日期。用户补充完整规则后，本轮已按以下边界二次修正：
 
-- 日期 T 等于今天，且任务已过截止日但仍为 `未启动` / `完成中`。
-- 日期 T 在未来，且任务 start_date <= T、状态仍为 `未启动` / `完成中`。
+- 条件 1：`start_date <= T <= end_date`。
+- 条件 2：`T <= 今天` 且 `start_date <= T` 且任务状态属于 `未启动` / `完成中`。
 
 本轮临时复现：
 
 ```text
-任务：start_date=2026-05-01, end_date=2026-05-10, status=未启动
-get_tasks_for_date("2026-05-25") -> []
-get_tasks_for_date("2026-06-01") -> []
-get_tasks_for_date("2026-05-05") -> ["逾期仍应展示"]
+任务：start_date=今天-20天, end_date=今天-10天, status=未启动/完成中
+get_tasks_for_date("今天") -> ["逾期仍应展示"]
+get_tasks_for_date("今天+10天") -> []
+get_tasks_for_date("区间内日期") -> ["区间内仍应展示"]
 ```
 
-React 前端还在 `frontend/src/lib/date.ts::dateInRange` 中重复实现了仅按 `[start_date, end_date]` 判断的规则，因此即使 engine 修复，如果 GUI 仍通过 `listTasks()` 后在前端过滤，日历格、今日 rail、刷新选择逻辑仍会漏掉逾期未完成任务。
+React 前端此前还在 `frontend/src/lib/date.ts::dateInRange` 中重复实现了仅按 `[start_date, end_date]` 判断的规则，因此即使 engine 修复，如果 GUI 仍通过 `listTasks()` 后在前端过滤，日历格、今日 rail、刷新选择逻辑仍会漏掉逾期未完成任务。
 
 修复方案：
 
 - 在 engine 增加统一谓词 `should_show_task_on_date(task, date_str)`。
-- 规则改为：`start_date <= T <= end_date`，或 `start_date <= T 且 status in ("未启动", "完成中")`。
-- 前端新增同语义 `shouldShowTaskOnDate(date, task)`，日历格、今日 rail、选中逻辑统一调用。
-- 补 engine regression test：覆盖今天、未来日期、已完成/已取消逾期任务不展示。
+- 规则改为：`start_date <= T <= end_date`，或 `T <= 今天 且 start_date <= T 且 status in ("未启动", "完成中")`。
+- 前端新增同语义 `shouldShowTaskOnDate(date, task, today)`，日历格、今日 rail、选中逻辑统一调用。
+- 补 regression test：覆盖今天仍展示、未来日期不按逾期持续展示、已完成/已取消逾期任务不展示。
 
 ## 2. QtWebEngine 渲染闪烁
 
@@ -66,24 +66,26 @@ React 前端还在 `frontend/src/lib/date.ts::dateInRange` 中重复实现了仅
 
 ## 4. 删除任务后跳到最早任务开始日
 
-结论：原因明确。删除逻辑会在剩余任务中选择当前日期命中的任务，否则选择 `remainingTasks[0]`，随后把 selectedDate 和可见月份改为 fallback 的 `start_date`。
+结论：原因明确。删除逻辑第一轮已固定回到今天，但刷新选择逻辑仍保留 `loadedTasks[0]` 兜底；当删除后触发重新读取或当前日期没有可选任务时，仍可能重新选中开始日期最早的任务，并把 selectedDate 和可见月份改为该任务的 `start_date`。
 
-相关位置：`frontend/src/components/TodoManagerApp.tsx::handleConfirmDelete`。
+相关位置：`frontend/src/components/TodoManagerApp.tsx::handleConfirmDelete` 与 `refreshTasks`。
 
 当前行为：
 
 ```text
-fallback = 当前日期命中的剩余任务 || remainingTasks[0] || null
-setSelectedDate(fallback.start_date)
-setVisibleFromDate(fallback.start_date)
+taskToSelect = 当前任务 || 当前日期命中的任务 || loadedTasks[0] || null
+if taskToSelect 不在当前日期展示:
+    setSelectedDate(taskToSelect.start_date)
+    setVisibleFromDate(taskToSelect.start_date)
 ```
 
-因此如果 `remainingTasks[0]` 是开始日期最早的跨月任务，就会把用户带回上个月或更早月份。
+因此如果 `loadedTasks[0]` 是开始日期最早的跨月任务，就会把用户带回上个月或更早月份。
 
 修复方案：
 
 - 删除成功后固定回到今天：`selectedDate=today`，`visibleYear/visibleMonth=today`。
 - 若今天有任务，则选中今天第一条应展示任务；否则清空详情选择或保留空态。
+- 移除刷新逻辑里的 `loadedTasks[0]` 兜底，避免删除后的二次刷新把视图拉回最早任务。
 - 撤销删除可继续选中恢复的任务，除非用户另行要求撤销也回到今天。
 
 ## 5. 验证记录
@@ -98,3 +100,15 @@ setVisibleFromDate(fallback.start_date)
 - `npm.cmd run build`：通过。
 - `scripts/build.py all`：通过，生成 `dist/TodoManager/todo.exe`、`dist/TodoManager/todo-gui.exe`、`dist/TodoManager/desktop-react/` 和 `dist/TodoManager-windows-2026-05-25.zip`，release smoke / zip audit 通过。
 - 打包后 CLI smoke：使用 `dist/TodoManager/todo.exe` 创建已过截止日的 `未启动` 任务后，按今天查询可展示该任务。
+
+2026-05-25 二次修复后验证：
+
+- `python -m compileall engine cli gui scripts`：通过。
+- `pytest tests/test_task_manager.py tests/test_release_packaging.py -q`：104 passed，1 个既有 `.pytest_cache` 写入 warning。
+- `pytest -q`：213 passed，1 个既有 `.pytest_cache` 写入 warning。
+- `npm.cmd run lint`：通过。
+- `npm.cmd run typecheck`：通过。
+- `npm.cmd run build`：通过。
+- `scripts/build.py all`：通过，生成 `dist/TodoManager/todo.exe`、`dist/TodoManager/todo-gui.exe`、`dist/TodoManager/desktop-react/` 和 `dist/TodoManager-windows-2026-05-25.zip`，release smoke / zip audit 通过。
+- 打包后 CLI smoke：已过截止日且状态仍未完成的任务在今天展示，在今天之后的未来日期不展示；未来日期位于任务自身 `[start_date, end_date]` 区间内时仍展示。
+- 当前打包尺寸：`todo-gui.exe` 218,866,468 bytes，`TodoManager-windows-2026-05-25.zip` 227,079,435 bytes。轻量化目前仅进入 M7.5 计划，尚未执行依赖裁剪，所以尺寸不会下降。

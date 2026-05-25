@@ -1,7 +1,7 @@
 """任务管理：CRUD + 历史管理 + 日期筛选 + 子任务"""
 
 import copy
-from datetime import datetime
+from datetime import date, datetime
 from typing import List, Optional
 from uuid import uuid4
 
@@ -283,11 +283,12 @@ def delete_task(task_id: str) -> bool:
 def should_show_task_on_date(task: Task, date_str: str) -> bool:
     """Return whether a non-deleted task should appear on a calendar date."""
     in_range = is_date_in_range(date_str, task.start_date, task.end_date)
-    ongoing_from_start = (
-        date_str >= task.start_date
+    ongoing_until_today = (
+        date_str <= date.today().isoformat()
+        and date_str >= task.start_date
         and task.status in ONGOING_DISPLAY_STATUSES
     )
-    return in_range or ongoing_from_start
+    return in_range or ongoing_until_today
 
 
 def get_tasks_for_date(date_str: str) -> List[Task]:
@@ -296,7 +297,8 @@ def get_tasks_for_date(date_str: str) -> List[Task]:
     展示规则（主任务）：
       条件1: T.deleted == False
       条件2: date_str 在 [T.start_date, T.end_date] 区间内，或
-      条件3: date_str >= T.start_date
+      条件3: date_str <= 今天
+             AND date_str >= T.start_date
              AND T.status IN ("未启动", "完成中")
       展示当且仅当: 条件1 AND (条件2 OR 条件3)
 

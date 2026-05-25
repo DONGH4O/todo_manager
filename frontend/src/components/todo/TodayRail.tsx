@@ -7,6 +7,7 @@ import type { StatusFilter, Task } from "@/types/todo";
 interface TodayRailProps {
   tasks: Task[];
   selectedDate: string;
+  today: string;
   selectedTaskId: string | null;
   visibleYear: number;
   visibleMonth: number;
@@ -18,6 +19,7 @@ interface TodayRailProps {
 export function TodayRail({
   tasks,
   selectedDate,
+  today,
   selectedTaskId,
   visibleYear,
   visibleMonth,
@@ -27,7 +29,7 @@ export function TodayRail({
 }: TodayRailProps) {
   const monthKey = getMonthKey(visibleYear, visibleMonth);
   const monthTasks = tasks.filter((task) => task.start_date.startsWith(monthKey) || task.end_date.startsWith(monthKey));
-  const selectedDayTasks = tasks.filter((task) => shouldShowTaskOnDate(selectedDate, task));
+  const selectedDayTasks = tasks.filter((task) => shouldShowTaskOnDate(selectedDate, task, today));
   const filteredTasks = selectedDayTasks.filter((task) => filter === "all" || task.status === filter);
 
   const metrics = [

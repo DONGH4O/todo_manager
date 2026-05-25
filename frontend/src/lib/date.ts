@@ -31,8 +31,15 @@ export function dateInRange(date: string, item: Pick<Task, "start_date" | "end_d
   return date >= item.start_date && date <= item.end_date;
 }
 
-export function shouldShowTaskOnDate(date: string, item: Pick<Task, "start_date" | "end_date" | "status">): boolean {
-  return dateInRange(date, item) || (date >= item.start_date && ongoingDisplayStatuses.includes(item.status));
+export function shouldShowTaskOnDate(
+  date: string,
+  item: Pick<Task, "start_date" | "end_date" | "status">,
+  today = toYmd(new Date())
+): boolean {
+  return (
+    dateInRange(date, item) ||
+    (date <= today && date >= item.start_date && ongoingDisplayStatuses.includes(item.status))
+  );
 }
 
 export function normalizeDateRange(start: string, end: string, fallback: string): [string, string] {
@@ -69,7 +76,7 @@ export function buildCalendarDays(
       isOutsideMonth: date.getMonth() !== month,
       isToday: key === today,
       isSelected: key === selectedDate,
-      tasks: tasks.filter((task) => shouldShowTaskOnDate(key, task))
+      tasks: tasks.filter((task) => shouldShowTaskOnDate(key, task, today))
     });
   }
 

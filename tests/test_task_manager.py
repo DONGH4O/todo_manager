@@ -509,14 +509,29 @@ class TestCalendarWithSubtasks:
 
         assert [item.id for item in tasks] == [task.id]
 
-    def test_ongoing_task_stays_visible_on_future_dates_after_deadline(self):
-        """未启动/完成中任务在未来日期也应持续展示。"""
+    def test_ongoing_task_does_not_continue_on_future_dates_after_deadline(self):
+        """未启动/完成中任务超过今天后，不再按逾期持续规则展示。"""
         today = date.today()
-        task = create_task(
-            "未来仍展示",
+        create_task(
+            "未来不展示",
             (today - timedelta(days=20)).isoformat(),
             (today - timedelta(days=10)).isoformat(),
             "完成中",
+            "bg",
+        )
+
+        tasks = get_tasks_for_date((today + timedelta(days=10)).isoformat())
+
+        assert tasks == []
+
+    def test_future_in_range_task_still_shows(self):
+        """未来日期在任务自身区间内时，仍按区间规则展示。"""
+        today = date.today()
+        task = create_task(
+            "未来区间内",
+            (today + timedelta(days=5)).isoformat(),
+            (today + timedelta(days=15)).isoformat(),
+            "已完成",
             "bg",
         )
 
