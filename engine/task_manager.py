@@ -10,6 +10,9 @@ from .models import Task, SubTask, VersionRecord, VALID_STATUSES, MAX_TITLE_LENG
 from .storage import load_tasks, save_tasks
 
 
+ONGOING_DISPLAY_STATUSES = ("未启动", "完成中")
+
+
 def _now_iso() -> str:
     """获取当前 UTC+8 时间的 ISO 8601 字符串（微秒精度）"""
     return datetime.now().astimezone().isoformat(timespec="microseconds")
@@ -277,13 +280,23 @@ def delete_task(task_id: str) -> bool:
     return True
 
 
+def should_show_task_on_date(task: Task, date_str: str) -> bool:
+    """Return whether a non-deleted task should appear on a calendar date."""
+    in_range = is_date_in_range(date_str, task.start_date, task.end_date)
+    ongoing_from_start = (
+        date_str >= task.start_date
+        and task.status in ONGOING_DISPLAY_STATUSES
+    )
+    return in_range or ongoing_from_start
+
+
 def get_tasks_for_date(date_str: str) -> List[Task]:
     """返回指定日期应展示的任务列表（含未删除的子任务）。
 
     展示规则（主任务）：
       条件1: T.deleted == False
-      条件2: date_str 在 [T.start_date, T.end_date] 区间内
-      条件3: date_str < 今天 AND date_str > T.end_date
+      条件2: date_str 在 [T.start_date, T.end_date] 区间内，或
+      条件3: date_str >= T.start_date
              AND T.status IN ("未启动", "完成中")
       展示当且仅当: 条件1 AND (条件2 OR 条件3)
 
@@ -291,21 +304,13 @@ def get_tasks_for_date(date_str: str) -> List[Task]:
       当主任务被展示时，其下所有 deleted=False 的子任务一并随 Task 返回。
       子任务自身的时间和状态不影响其是否展示。
     """
-    from datetime import date as dt_date
     all_tasks = load_tasks()
-    today_str = dt_date.today().isoformat()
     result: List[Task] = []
 
     for t in all_tasks:
         if t.deleted:
             continue
-        in_range = is_date_in_range(date_str, t.start_date, t.end_date)
-        past_unfinished = (
-            date_str < today_str
-            and date_str > t.end_date
-            and t.status in ("未启动", "完成中")
-        )
-        if in_range or past_unfinished:
+        if should_show_task_on_date(t, date_str):
             t_copy = copy.copy(t)
             t_copy.subtasks = [s for s in t.subtasks if not s.deleted]
             result.append(t_copy)

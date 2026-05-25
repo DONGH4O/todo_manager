@@ -9,6 +9,7 @@
 > - 2026-05-24：新增 M6.6 应用图标与桌面品牌资产，在 M6.5 React 桌面发布界面基础上补齐 Windows/macOS GUI 任务栏、桌面和 `.app` 品牌图标。
 > - 2026-05-24：React GUI 切换为默认 `todo-gui` 入口；旧 PySide6 widget GUI 归档到 `archive/legacy-pyside6-gui/`，后续里程碑不再围绕旧 GUI 开发或验收。
 > - 2026-05-25：M7 完成。Public GitHub repo 已创建并推送 `main`，GitHub Actions 已在 Windows/macOS 通过；repo URL 为 `https://github.com/DONGH4O/todo_manager`。
+> - 2026-05-25：新增 M7.5 桌面 GUI 轻量化优化计划。该项仅纳入路线图，当前不启动实施；优先处理真实使用中发现的引擎与 GUI 稳定性问题。
 
 ## 1. 执行原则
 
@@ -53,6 +54,7 @@
 | M6.5 | React 桌面正式发布界面集成 | 将 React 前端纳入桌面应用发布链路 | 桌面壳/桥接方案、真实数据接入、构建打包脚本、桌面 smoke |
 | M6.6 | 应用图标与桌面品牌资产 | 为 Windows/macOS GUI 和发布包接入基于 Figma brand mark + brand letter 的应用图标 | 可复现图标资源、Qt 运行时图标、PyInstaller `.ico`/`.icns` 配置、验证报告 |
 | M7 | GitHub 与 CI | 建立协作与持续验证能力 | GitHub repo、Actions、Python/React/桌面包检查、release checklist |
+| M7.5 | 桌面 GUI 轻量化优化 | 降低 `todo-gui` 发布包体积，同时保持 React 桌面 GUI 稳定 | PyInstaller/QtWebEngine 裁剪策略、体积审计、真实窗口 smoke、回退说明 |
 | M8 | npm CLI 发布 | 提供跨平台 npm 命令入口 | `package.json`、Node shim、`npm pack` 验证 |
 | M9 | AI Agent SKILL | 让 agent 能可靠调用工具 | `SKILL.md`、references、示例调用 |
 | M10 | 发布候选验收 | 汇总正式桌面发布证据并准备正式发布 | 验收报告、版本 tag、GitHub Release、React 桌面应用验收、npm publish checklist |
@@ -386,6 +388,42 @@
 - macOS CI 通过。
 - React 前端和桌面发布链路在 CI 中得到覆盖。
 - README 上的安装与测试命令在 CI 中得到覆盖。
+
+### M7.5. 桌面 GUI 轻量化优化
+
+状态：未启动。2026-05-25 已完成一次只读体积排查，确认当前 `todo-gui.exe` 主要体积来自 PySide6 QtWebEngine/Chromium 运行时；该里程碑仅纳入后续计划，当前不开展实现。
+
+目标：在不牺牲 React 桌面 GUI 稳定性、中文显示、日期选择器和核心任务流的前提下，降低 Windows/macOS 发布包体积，并为后续发布候选建立可复现的体积审计口径。
+
+任务：
+
+- 建立 `todo-gui` 体积审计脚本或文档化命令，按 PyInstaller archive 分类统计 QtWebEngine、Qt resources、locales、Qt Quick/QML、Python runtime 等体积。
+- 在正式修改前保留基线数据，例如当前 Windows `todo-gui.exe` 约 208 MB，`desktop-react/` 约 0.82 MB，证明大头不在 React 静态资源。
+- 评估低风险 PyInstaller 裁剪：
+  - 移除 QtWebEngine debug/devtools 资源；
+  - 仅保留必要 locale，例如 `zh-CN` 与 `en-US`；
+  - 排除 Qt3D、Charts、DataVisualization、Multimedia、Pdf、Quick3D 等正式 GUI 未使用模块；
+  - 保留 `Qt6WebEngineCore.dll`、QtWebEngine process、核心 resources、QtWebChannel 和 Widgets 栈。
+- 为 `build_gui.spec` 增加可读的裁剪规则，并补测试防止 debug/devtools、多余 locale 或无关 Qt 模块回流。
+- 重新执行 Windows 真实窗口 smoke，覆盖启动、悬浮、点击、输入、日期选择器、状态选择、新建/删除/撤销、搜索、主题切换和图标显示。
+- 在 macOS 环境执行对应 `.app` 启动与体积复核，避免 Windows-only 裁剪破坏 macOS bundle。
+- 明确回退策略：若裁剪导致 QtWebEngine 渲染、中文字体、日期弹层或桥接不稳定，优先恢复稳定性，再缩小裁剪范围。
+- 仅在 PyInstaller/QtWebEngine 裁剪无法满足目标时，另行评估 WebView2/Tauri/WKWebView 等桌面壳替代路线；该替代路线不在本里程碑默认实施范围内。
+
+交付品：
+
+- 更新后的 `build_gui.spec` 或独立裁剪配置说明
+- 体积审计记录
+- 更新后的 release smoke / packaging tests
+- Windows 与 macOS 真实窗口验证记录
+- 回退说明
+
+验收：
+
+- `todo-gui` 发布体积较 M6.5/M7 基线有明确下降，且体积变化可复现。
+- Windows/macOS React 桌面 GUI 核心任务流全部通过。
+- 发布包不包含 debug/devtools 资源、多余 locale、无关 Qt 模块或前端缓存。
+- 若体积目标与稳定性冲突，以稳定性为验收优先级。
 
 ### M8. npm CLI 发布
 

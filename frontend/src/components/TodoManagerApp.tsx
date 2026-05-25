@@ -10,7 +10,7 @@ import { DeleteConfirmModal } from "@/components/todo/DeleteConfirmModal";
 import { TaskDetailPanel } from "@/components/todo/TaskDetailPanel";
 import { TodayRail } from "@/components/todo/TodayRail";
 import { UndoToast } from "@/components/ui/UndoToast";
-import { dateInRange, normalizeDateRange } from "@/lib/date";
+import { normalizeDateRange, shouldShowTaskOnDate } from "@/lib/date";
 import { TodoDataError, todayIso, todoData } from "@/lib/todo-data";
 import type { DetailDraft, StatusFilter, SubTask, Task, TaskStatus, ThemeMode } from "@/types/todo";
 
@@ -151,14 +151,14 @@ export function TodoManagerApp() {
         const fallbackDate = selectedDateRef.current;
         const taskToSelect =
           loadedTasks.find((task) => task.id === (preferredTaskId ?? selectedTaskIdRef.current)) ||
-          loadedTasks.find((task) => dateInRange(fallbackDate, task)) ||
+          loadedTasks.find((task) => shouldShowTaskOnDate(fallbackDate, task)) ||
           loadedTasks[0] ||
           null;
 
         setTasks(loadedTasks);
         setSelectedTaskId(taskToSelect?.id || null);
         setDetailDraft(createDraft(taskToSelect));
-        if (taskToSelect && !dateInRange(fallbackDate, taskToSelect)) {
+        if (taskToSelect && !shouldShowTaskOnDate(fallbackDate, taskToSelect)) {
           setSelectedDate(taskToSelect.start_date);
           setVisibleFromDate(taskToSelect.start_date);
         }
@@ -225,7 +225,7 @@ export function TodoManagerApp() {
 
   const handleSelectDate = (date: string) => {
     setSelectedDate(date);
-    const firstTask = tasks.find((task) => dateInRange(date, task));
+    const firstTask = tasks.find((task) => shouldShowTaskOnDate(date, task));
     if (firstTask) selectTask(firstTask);
   };
 
@@ -250,7 +250,7 @@ export function TodoManagerApp() {
   const handleToday = () => {
     setVisibleFromDate(today);
     setSelectedDate(today);
-    const firstTask = tasks.find((task) => dateInRange(today, task));
+    const firstTask = tasks.find((task) => shouldShowTaskOnDate(today, task));
     if (firstTask) selectTask(firstTask);
   };
 
@@ -361,15 +361,13 @@ export function TodoManagerApp() {
     try {
       const deleted = await todoData.deleteTask(selectedTask.id);
       const remainingTasks = tasks.filter((task) => task.id !== selectedTask.id);
-      const fallback = remainingTasks.find((task) => dateInRange(selectedDate, task)) || remainingTasks[0] || null;
+      const fallback = remainingTasks.find((task) => shouldShowTaskOnDate(today, task)) || null;
       setDeletedTask(deleted);
       setTasks(remainingTasks);
       setSelectedTaskId(fallback?.id || null);
       setDetailDraft(createDraft(fallback));
-      if (fallback) {
-        setSelectedDate(fallback.start_date);
-        setVisibleFromDate(fallback.start_date);
-      }
+      setSelectedDate(today);
+      setVisibleFromDate(today);
       setDeleteOpen(false);
       showToast("任务已删除", true);
     } catch (error) {

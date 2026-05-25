@@ -1,4 +1,6 @@
-import type { CalendarDay, Task } from "@/types/todo";
+import type { CalendarDay, Task, TaskStatus } from "@/types/todo";
+
+const ongoingDisplayStatuses: TaskStatus[] = ["未启动", "完成中"];
 
 export function formatMonthDay(date: string): string {
   const [, month, day] = date.split("-");
@@ -27,6 +29,10 @@ export function parseYmd(value: string): Date | undefined {
 
 export function dateInRange(date: string, item: Pick<Task, "start_date" | "end_date">): boolean {
   return date >= item.start_date && date <= item.end_date;
+}
+
+export function shouldShowTaskOnDate(date: string, item: Pick<Task, "start_date" | "end_date" | "status">): boolean {
+  return dateInRange(date, item) || (date >= item.start_date && ongoingDisplayStatuses.includes(item.status));
 }
 
 export function normalizeDateRange(start: string, end: string, fallback: string): [string, string] {
@@ -63,7 +69,7 @@ export function buildCalendarDays(
       isOutsideMonth: date.getMonth() !== month,
       isToday: key === today,
       isSelected: key === selectedDate,
-      tasks: tasks.filter((task) => dateInRange(key, task))
+      tasks: tasks.filter((task) => shouldShowTaskOnDate(key, task))
     });
   }
 

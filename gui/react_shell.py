@@ -209,6 +209,25 @@ def _resolve_index_html(react_root: str | None = None) -> Path:
     return ROOT / "frontend" / "out" / "index.html"
 
 
+def _install_desktop_shell_script(view: QWebEngineView) -> None:
+    script = QWebEngineScript()
+    script.setName("TodoManagerDesktopShellMarker")
+    script.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentCreation)
+    script.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
+    script.setRunsOnSubFrames(False)
+    script.setSourceCode(
+        """
+(function () {
+  window.todoDesktopShell = true;
+  if (document.documentElement) {
+    document.documentElement.dataset.desktopShell = "true";
+  }
+})();
+"""
+    )
+    view.page().scripts().insert(script)
+
+
 def _install_bridge_script(view: QWebEngineView) -> None:
     script = QWebEngineScript()
     script.setName("TodoManagerDesktopBridge")
@@ -289,6 +308,7 @@ def run_react_app(data_dir: str | None = None, react_root: str | None = None) ->
     view._todo_bridge = bridge
     view._todo_channel = channel
 
+    _install_desktop_shell_script(view)
     _install_bridge_script(view)
     url = QUrl.fromLocalFile(str(index_html))
     url.setQuery("desktop=1")

@@ -1,4 +1,4 @@
-import { buildCalendarDays } from "@/lib/date";
+import { buildCalendarDays, shouldShowTaskOnDate } from "@/lib/date";
 import { CalendarDayCell } from "@/components/calendar/CalendarDayCell";
 import type { Task } from "@/types/todo";
 
@@ -33,7 +33,7 @@ export function CalendarWorkbench({
 }: CalendarWorkbenchProps) {
   const days = buildCalendarDays(visibleYear, visibleMonth, tasks, selectedDate, today);
   const weekCount = Math.ceil(days.length / 7);
-  const selectedDateTaskCount = tasks.filter((task) => selectedDate >= task.start_date && selectedDate <= task.end_date).length;
+  const selectedDateTaskCount = tasks.filter((task) => shouldShowTaskOnDate(selectedDate, task)).length;
   const calendarGridStyle = {
     gridTemplateRows: `repeat(${weekCount}, minmax(96px, 1fr))`,
     minHeight: `${weekCount * 96 + (weekCount - 1) * 8}px`

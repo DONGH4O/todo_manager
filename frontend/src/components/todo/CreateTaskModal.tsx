@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 
 import { normalizeDateRange } from "@/lib/date";
-import { statusList } from "@/lib/tokens";
 import { DatePickerField } from "@/components/ui/DatePickerField";
 import { ModalShell } from "@/components/ui/ModalShell";
+import { StatusDropdown } from "@/components/ui/StatusDropdown";
 import type { Task, TaskStatus } from "@/types/todo";
 
 interface CreateTaskModalProps {
@@ -76,13 +76,7 @@ export function CreateTaskModal({ open, selectedDate, onCancel, onCreate }: Crea
         </div>
         <label className="tm-field">
           <span>当前状态</span>
-          <select className="tm-select h-[38px] w-full" value={status} onChange={(event) => setStatus(event.target.value as TaskStatus)}>
-            {statusList.map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
+          <StatusDropdown value={status} onChange={setStatus} ariaLabel="选择任务状态" className="w-full" />
         </label>
         <label className="tm-field">
           <span>备注</span>

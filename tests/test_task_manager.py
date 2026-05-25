@@ -3,6 +3,7 @@
 import os
 import copy
 import tempfile
+from datetime import date, timedelta
 import pytest
 from todo_manager.engine.models import Task, SubTask, VersionRecord, VALID_STATUSES
 from todo_manager.engine.storage import set_data_dir
@@ -493,6 +494,48 @@ class TestDeleteSubtask:
 # ── 日历展示（含子任务）────────────────────────────────────
 
 class TestCalendarWithSubtasks:
+    def test_ongoing_task_stays_visible_on_today_after_deadline(self):
+        """未启动/完成中任务过截止日后，今天仍应持续展示。"""
+        today = date.today()
+        task = create_task(
+            "逾期未启动",
+            (today - timedelta(days=20)).isoformat(),
+            (today - timedelta(days=10)).isoformat(),
+            "未启动",
+            "bg",
+        )
+
+        tasks = get_tasks_for_date(today.isoformat())
+
+        assert [item.id for item in tasks] == [task.id]
+
+    def test_ongoing_task_stays_visible_on_future_dates_after_deadline(self):
+        """未启动/完成中任务在未来日期也应持续展示。"""
+        today = date.today()
+        task = create_task(
+            "未来仍展示",
+            (today - timedelta(days=20)).isoformat(),
+            (today - timedelta(days=10)).isoformat(),
+            "完成中",
+            "bg",
+        )
+
+        tasks = get_tasks_for_date((today + timedelta(days=10)).isoformat())
+
+        assert [item.id for item in tasks] == [task.id]
+
+    def test_completed_or_cancelled_tasks_do_not_continue_after_deadline(self):
+        """已完成/已取消任务超过截止日后不再按持续任务展示。"""
+        today = date.today()
+        start = (today - timedelta(days=20)).isoformat()
+        end = (today - timedelta(days=10)).isoformat()
+        create_task("已完成过期", start, end, "已完成", "bg")
+        create_task("已取消过期", start, end, "已取消", "bg")
+
+        tasks = get_tasks_for_date(today.isoformat())
+
+        assert tasks == []
+
     def test_parent_shown_subtasks_included(self):
         """父任务展示时，未删除的子任务也出现"""
         task = create_task("主", "2026-04-01", "2026-04-30", "未启动", "bg")

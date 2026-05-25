@@ -1,4 +1,4 @@
-import { dateInRange, formatMonthDay, getMonthKey } from "@/lib/date";
+import { formatMonthDay, getMonthKey, shouldShowTaskOnDate } from "@/lib/date";
 import { MetricCard } from "@/components/todo/MetricCard";
 import { StatusFilterTabs } from "@/components/todo/StatusFilterTabs";
 import { TaskCard } from "@/components/todo/TaskCard";
@@ -27,7 +27,7 @@ export function TodayRail({
 }: TodayRailProps) {
   const monthKey = getMonthKey(visibleYear, visibleMonth);
   const monthTasks = tasks.filter((task) => task.start_date.startsWith(monthKey) || task.end_date.startsWith(monthKey));
-  const selectedDayTasks = tasks.filter((task) => dateInRange(selectedDate, task));
+  const selectedDayTasks = tasks.filter((task) => shouldShowTaskOnDate(selectedDate, task));
   const filteredTasks = selectedDayTasks.filter((task) => filter === "all" || task.status === filter);
 
   const metrics = [

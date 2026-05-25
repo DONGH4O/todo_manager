@@ -110,6 +110,17 @@ select {
     cover;
 }
 
+:root[data-desktop-shell="true"] .tm-panel,
+:root[data-desktop-shell="true"] .backdrop-blur-glass,
+:root[data-desktop-shell="true"] .backdrop-blur-sm {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+:root[data-desktop-shell="true"] * {
+  transition-property: color, background-color, border-color, box-shadow, opacity !important;
+}
+
 @layer components {
   .tm-panel {
     @apply flex min-w-0 flex-col overflow-hidden rounded-default border border-line bg-surface shadow-panel backdrop-blur-glass;

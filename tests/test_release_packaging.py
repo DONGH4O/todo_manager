@@ -47,6 +47,27 @@ def test_gui_spec_embeds_application_icons():
     assert (PROJECT_ROOT / "assets" / "icons" / "todo-manager.png").exists()
 
 
+def test_react_status_controls_avoid_native_select_popups():
+    create_task = (PROJECT_ROOT / "frontend" / "src" / "components" / "todo" / "CreateTaskModal.tsx").read_text(encoding="utf-8")
+    create_subtask = (PROJECT_ROOT / "frontend" / "src" / "components" / "todo" / "CreateSubtaskModal.tsx").read_text(encoding="utf-8")
+    subtask_row = (PROJECT_ROOT / "frontend" / "src" / "components" / "todo" / "SubtaskRow.tsx").read_text(encoding="utf-8")
+
+    assert "StatusDropdown" in create_task
+    assert "StatusDropdown" in create_subtask
+    assert "StatusDropdown" in subtask_row
+    assert "<select" not in create_task
+    assert "<select" not in create_subtask
+
+
+def test_qtwebengine_desktop_shell_has_stability_mode():
+    shell = (PROJECT_ROOT / "gui" / "react_shell.py").read_text(encoding="utf-8")
+    css = (PROJECT_ROOT / "frontend" / "src" / "app" / "globals.css").read_text(encoding="utf-8")
+
+    assert 'dataset.desktopShell = "true"' in shell
+    assert ':root[data-desktop-shell="true"]' in css
+    assert "backdrop-filter: none" in css
+
+
 def test_release_tree_audit_accepts_expected_windows_layout(tmp_path):
     smoke = _load_script("smoke_release.py")
     profile = smoke.profile_for_platform("windows")
