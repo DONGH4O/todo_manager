@@ -10,8 +10,8 @@ import { DeleteConfirmModal } from "@/components/todo/DeleteConfirmModal";
 import { TaskDetailPanel } from "@/components/todo/TaskDetailPanel";
 import { TodayRail } from "@/components/todo/TodayRail";
 import { UndoToast } from "@/components/ui/UndoToast";
-import { normalizeDateRange, shouldShowTaskOnDate } from "@/lib/date";
-import { TodoDataError, todayIso, todoData } from "@/lib/todo-data";
+import { getVisibleDateKeys, normalizeDateRange } from "@/lib/date";
+import { TodoDataError, todayIso, todoData, type TasksByDate } from "@/lib/todo-data";
 import type { DetailDraft, StatusFilter, SubTask, Task, TaskStatus, ThemeMode } from "@/types/todo";
 
 function createDraft(task: Task | null): DetailDraft | null {
@@ -56,6 +56,8 @@ export function TodoManagerApp() {
   const selectedDateRef = useRef(today);
 
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasksByDate, setTasksByDate] = useState<TasksByDate>({});
+  const [dataVersion, setDataVersion] = useState(0);
   const [visibleYear, setVisibleYear] = useState(initialYear);
   const [visibleMonth, setVisibleMonth] = useState(initialMonth);
   const [selectedDate, setSelectedDate] = useState(today);
@@ -76,6 +78,11 @@ export function TodoManagerApp() {
     () => tasks.find((task) => task.id === selectedTaskId) || null,
     [selectedTaskId, tasks]
   );
+  const visibleDateKeys = useMemo(
+    () => getVisibleDateKeys(visibleYear, visibleMonth, selectedDate, today),
+    [visibleYear, visibleMonth, selectedDate, today]
+  );
+  const selectedDayTasks = tasksByDate[selectedDate] || [];
 
   useEffect(() => {
     selectedTaskIdRef.current = selectedTaskId;
@@ -139,6 +146,16 @@ export function TodoManagerApp() {
     setVisibleMonth(month - 1);
   }, []);
 
+  const markDataChanged = useCallback(() => {
+    setDataVersion((version) => version + 1);
+  }, []);
+
+  const loadDateTasks = useCallback(async (dates: string[]) => {
+    const dateTasks = await todoData.listTasksForDates(dates);
+    setTasksByDate((currentTasksByDate) => ({ ...currentTasksByDate, ...dateTasks }));
+    return dateTasks;
+  }, []);
+
   const replaceTask = useCallback((updatedTask: Task) => {
     setTasks((currentTasks) => currentTasks.map((task) => (task.id === updatedTask.id ? updatedTask : task)));
     setDetailDraft(createDraft(updatedTask));
@@ -149,16 +166,18 @@ export function TodoManagerApp() {
       try {
         const loadedTasks = await todoData.listTasks();
         const fallbackDate = selectedDateRef.current;
+        const fallbackDateTasks = await loadDateTasks([fallbackDate]);
+        const displayedTasks = fallbackDateTasks[fallbackDate] || [];
         const currentTaskId = preferredTaskId ?? selectedTaskIdRef.current;
         const taskToSelect =
           (currentTaskId ? loadedTasks.find((task) => task.id === currentTaskId) : null) ||
-          loadedTasks.find((task) => shouldShowTaskOnDate(fallbackDate, task, today)) ||
+          displayedTasks[0] ||
           null;
 
         setTasks(loadedTasks);
         setSelectedTaskId(taskToSelect?.id || null);
         setDetailDraft(createDraft(taskToSelect));
-        if (taskToSelect && !shouldShowTaskOnDate(fallbackDate, taskToSelect, today)) {
+        if (taskToSelect && !displayedTasks.some((task) => task.id === taskToSelect.id)) {
           setSelectedDate(taskToSelect.start_date);
           setVisibleFromDate(taskToSelect.start_date);
         }
@@ -167,12 +186,18 @@ export function TodoManagerApp() {
         showToast(dataErrorMessage(error, "数据读取失败"));
       }
     },
-    [setVisibleFromDate, showToast, today]
+    [loadDateTasks, setVisibleFromDate, showToast]
   );
 
   useEffect(() => {
     void refreshTasks();
   }, [refreshTasks]);
+
+  useEffect(() => {
+    void loadDateTasks(visibleDateKeys).catch((error) => {
+      showToast(dataErrorMessage(error, "日历数据读取失败"));
+    });
+  }, [dataVersion, loadDateTasks, showToast, visibleDateKeys]);
 
   const closeSearch = useCallback(() => setSearchOpen(false), []);
 
@@ -218,15 +243,27 @@ export function TodoManagerApp() {
 
   const handleSelectSearchResult = (task: Task) => {
     setVisibleFromDate(task.start_date);
+    selectedDateRef.current = task.start_date;
     setSelectedDate(task.start_date);
     selectTask(task);
     setSearchOpen(false);
   };
 
-  const handleSelectDate = (date: string) => {
+  const handleSelectDate = async (date: string) => {
     setSelectedDate(date);
-    const firstTask = tasks.find((task) => shouldShowTaskOnDate(date, task, today));
-    if (firstTask) selectTask(firstTask);
+    selectedDateRef.current = date;
+    try {
+      const dateTasks = await loadDateTasks([date]);
+      const firstTask = dateTasks[date]?.[0] || null;
+      if (firstTask) {
+        selectTask(firstTask);
+      } else {
+        setSelectedTaskId(null);
+        setDetailDraft(null);
+      }
+    } catch (error) {
+      showToast(dataErrorMessage(error, "日历数据读取失败"));
+    }
   };
 
   const handlePreviousMonth = () => {
@@ -247,11 +284,22 @@ export function TodoManagerApp() {
     setVisibleMonth((month) => month + 1);
   };
 
-  const handleToday = () => {
+  const handleToday = async () => {
     setVisibleFromDate(today);
     setSelectedDate(today);
-    const firstTask = tasks.find((task) => shouldShowTaskOnDate(today, task, today));
-    if (firstTask) selectTask(firstTask);
+    selectedDateRef.current = today;
+    try {
+      const dateTasks = await loadDateTasks([today]);
+      const firstTask = dateTasks[today]?.[0] || null;
+      if (firstTask) {
+        selectTask(firstTask);
+      } else {
+        setSelectedTaskId(null);
+        setDetailDraft(null);
+      }
+    } catch (error) {
+      showToast(dataErrorMessage(error, "今日数据读取失败"));
+    }
   };
 
   const handleCreateTask = async (task: Task) => {
@@ -264,9 +312,11 @@ export function TodoManagerApp() {
         background: task.background
       });
       setTasks((currentTasks) => [...currentTasks, createdTask]);
+      selectedDateRef.current = createdTask.start_date;
       setSelectedDate(createdTask.start_date);
       setVisibleFromDate(createdTask.start_date);
       selectTask(createdTask);
+      markDataChanged();
       setCreateTaskOpen(false);
     } catch (error) {
       showToast(dataErrorMessage(error, "任务创建失败"));
@@ -295,6 +345,7 @@ export function TodoManagerApp() {
 
       setTasks((currentTasks) => currentTasks.map((task) => (task.id === updatedTask.id ? updatedTask : task)));
       setDetailDraft(nextDraft);
+      markDataChanged();
       setCreateSubtaskOpen(false);
     } catch (error) {
       showToast(dataErrorMessage(error, "子任务创建失败"));
@@ -307,6 +358,7 @@ export function TodoManagerApp() {
     try {
       const updatedTask = await todoData.updateTask(selectedTask.id, { status });
       replaceTask(updatedTask);
+      markDataChanged();
     } catch (error) {
       showToast(dataErrorMessage(error, "状态更新失败"));
     }
@@ -347,8 +399,10 @@ export function TodoManagerApp() {
       }
 
       replaceTask(updatedTask);
+      selectedDateRef.current = startDate;
       setSelectedDate(startDate);
       setVisibleFromDate(startDate);
+      markDataChanged();
       showToast("修改已保存");
     } catch (error) {
       showToast(dataErrorMessage(error, "修改保存失败"));
@@ -361,7 +415,8 @@ export function TodoManagerApp() {
     try {
       const deleted = await todoData.deleteTask(selectedTask.id);
       const remainingTasks = tasks.filter((task) => task.id !== selectedTask.id);
-      const fallback = remainingTasks.find((task) => shouldShowTaskOnDate(today, task, today)) || null;
+      const todayTasks = await loadDateTasks([today]);
+      const fallback = todayTasks[today]?.[0] || null;
       selectedDateRef.current = today;
       selectedTaskIdRef.current = fallback?.id || null;
       setDeletedTask(deleted);
@@ -370,6 +425,7 @@ export function TodoManagerApp() {
       setDetailDraft(createDraft(fallback));
       setSelectedDate(today);
       setVisibleFromDate(today);
+      markDataChanged();
       setDeleteOpen(false);
       showToast("任务已删除", true);
     } catch (error) {
@@ -384,9 +440,11 @@ export function TodoManagerApp() {
       const restoredTask = await todoData.undoTask(deletedTask);
       if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
       setTasks((currentTasks) => [...currentTasks, restoredTask]);
+      selectedDateRef.current = restoredTask.start_date;
       setSelectedDate(restoredTask.start_date);
       setVisibleFromDate(restoredTask.start_date);
       selectTask(restoredTask);
+      markDataChanged();
       setDeletedTask(null);
       setToast(null);
     } catch (error) {
@@ -417,8 +475,8 @@ export function TodoManagerApp() {
         <section className="grid min-h-0 flex-1 grid-cols-1 gap-gutter-lg lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[260px_minmax(560px,1fr)_342px]">
           <TodayRail
             tasks={tasks}
+            selectedDayTasks={selectedDayTasks}
             selectedDate={selectedDate}
-            today={today}
             selectedTaskId={selectedTaskId}
             visibleYear={visibleYear}
             visibleMonth={visibleMonth}
@@ -427,8 +485,9 @@ export function TodoManagerApp() {
             onSelectTask={selectTask}
           />
           <CalendarWorkbench
-            tasks={tasks}
+            tasksByDate={tasksByDate}
             selectedDate={selectedDate}
+            selectedDateTaskCount={selectedDayTasks.length}
             today={today}
             visibleYear={visibleYear}
             visibleMonth={visibleMonth}

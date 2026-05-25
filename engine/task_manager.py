@@ -291,14 +291,20 @@ def should_show_task_on_date(task: Task, date_str: str) -> bool:
     return in_range or ongoing_until_today
 
 
-def get_tasks_for_date(date_str: str) -> List[Task]:
-    """返回指定日期应展示的任务列表（含未删除的子任务）。
+def _copy_visible_task(task: Task) -> Task:
+    task_copy = copy.copy(task)
+    task_copy.subtasks = [subtask for subtask in task.subtasks if not subtask.deleted]
+    return task_copy
+
+
+def get_tasks_for_dates(date_strs: List[str]) -> dict[str, List[Task]]:
+    """返回多个日期各自应展示的任务列表（含未删除的子任务）。
 
     展示规则（主任务）：
       条件1: T.deleted == False
-      条件2: date_str 在 [T.start_date, T.end_date] 区间内，或
+      条件2: date_str 在 [Task.start_date, Task.end_date] 区间内，或
       条件3: date_str <= 今天
-             AND date_str >= T.start_date
+             AND date_str >= Task.start_date
              AND T.status IN ("未启动", "完成中")
       展示当且仅当: 条件1 AND (条件2 OR 条件3)
 
@@ -306,18 +312,21 @@ def get_tasks_for_date(date_str: str) -> List[Task]:
       当主任务被展示时，其下所有 deleted=False 的子任务一并随 Task 返回。
       子任务自身的时间和状态不影响其是否展示。
     """
-    all_tasks = load_tasks()
-    result: List[Task] = []
+    unique_dates = list(dict.fromkeys(date_strs))
+    result: dict[str, List[Task]] = {date_str: [] for date_str in unique_dates}
+    tasks = [task for task in load_tasks() if not task.deleted]
 
-    for t in all_tasks:
-        if t.deleted:
-            continue
-        if should_show_task_on_date(t, date_str):
-            t_copy = copy.copy(t)
-            t_copy.subtasks = [s for s in t.subtasks if not s.deleted]
-            result.append(t_copy)
+    for date_str in unique_dates:
+        for task in tasks:
+            if should_show_task_on_date(task, date_str):
+                result[date_str].append(_copy_visible_task(task))
 
     return result
+
+
+def get_tasks_for_date(date_str: str) -> List[Task]:
+    """返回指定日期应展示的任务列表（含未删除的子任务）。"""
+    return get_tasks_for_dates([date_str]).get(date_str, [])
 
 
 def list_all_tasks(include_deleted: bool = False) -> List[Task]:

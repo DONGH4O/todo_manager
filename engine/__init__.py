@@ -2,7 +2,7 @@
 from .task_manager import (
     create_task, get_task, update_task, delete_task, undo_task,
     create_subtask, get_subtask, update_subtask, delete_subtask, undo_subtask,
-    get_tasks_for_date, list_all_tasks,
+    get_tasks_for_date, get_tasks_for_dates, list_all_tasks,
     search_tasks, get_all_tasks_flat,
 )
 from .models import Task, SubTask, VersionRecord, VALID_STATUSES

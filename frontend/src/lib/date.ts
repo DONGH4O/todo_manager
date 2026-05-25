@@ -1,6 +1,4 @@
-import type { CalendarDay, Task, TaskStatus } from "@/types/todo";
-
-const ongoingDisplayStatuses: TaskStatus[] = ["未启动", "完成中"];
+import type { CalendarDay, Task } from "@/types/todo";
 
 export function formatMonthDay(date: string): string {
   const [, month, day] = date.split("-");
@@ -27,21 +25,6 @@ export function parseYmd(value: string): Date | undefined {
   return toYmd(parsed) === value ? parsed : undefined;
 }
 
-export function dateInRange(date: string, item: Pick<Task, "start_date" | "end_date">): boolean {
-  return date >= item.start_date && date <= item.end_date;
-}
-
-export function shouldShowTaskOnDate(
-  date: string,
-  item: Pick<Task, "start_date" | "end_date" | "status">,
-  today = toYmd(new Date())
-): boolean {
-  return (
-    dateInRange(date, item) ||
-    (date <= today && date >= item.start_date && ongoingDisplayStatuses.includes(item.status))
-  );
-}
-
 export function normalizeDateRange(start: string, end: string, fallback: string): [string, string] {
   const cleanStart = start || fallback;
   const cleanEnd = !end || end < cleanStart ? cleanStart : end;
@@ -52,31 +35,50 @@ export function getMonthKey(year: number, month: number): string {
   return `${year}-${`${month + 1}`.padStart(2, "0")}`;
 }
 
-export function buildCalendarDays(
-  year: number,
-  month: number,
-  tasks: Task[],
-  selectedDate: string,
-  today: string
-): CalendarDay[] {
+function getCalendarBounds(year: number, month: number): [Date, Date] {
   const first = new Date(year, month, 1);
   const mondayIndex = (first.getDay() + 6) % 7;
   const start = new Date(year, month, 1 - mondayIndex);
   const last = new Date(year, month + 1, 0);
   const sundayIndex = (last.getDay() + 6) % 7;
   const end = new Date(year, month, last.getDate() + (6 - sundayIndex));
-  const days: CalendarDay[] = [];
+  return [start, end];
+}
+
+export function getCalendarDateKeys(year: number, month: number): string[] {
+  const [start, end] = getCalendarBounds(year, month);
+  const keys: string[] = [];
 
   for (const date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
-    const key = toYmd(date);
+    keys.push(toYmd(date));
+  }
+
+  return keys;
+}
+
+export function getVisibleDateKeys(year: number, month: number, selectedDate: string, today: string): string[] {
+  return Array.from(new Set([...getCalendarDateKeys(year, month), selectedDate, today]));
+}
+
+export function buildCalendarDays(
+  year: number,
+  month: number,
+  tasksByDate: Record<string, Task[]>,
+  selectedDate: string,
+  today: string
+): CalendarDay[] {
+  const days: CalendarDay[] = [];
+
+  for (const key of getCalendarDateKeys(year, month)) {
+    const parsed = parseYmd(key);
 
     days.push({
       key,
-      dayNumber: date.getDate(),
-      isOutsideMonth: date.getMonth() !== month,
+      dayNumber: parsed?.getDate() || Number(key.slice(8, 10)),
+      isOutsideMonth: parsed ? parsed.getMonth() !== month : false,
       isToday: key === today,
       isSelected: key === selectedDate,
-      tasks: tasks.filter((task) => shouldShowTaskOnDate(key, task, today))
+      tasks: tasksByDate[key] || []
     });
   }
 

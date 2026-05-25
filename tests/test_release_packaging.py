@@ -68,16 +68,19 @@ def test_qtwebengine_desktop_shell_has_stability_mode():
     assert "backdrop-filter: none" in css
 
 
-def test_react_calendar_rule_caps_ongoing_tasks_at_today():
+def test_react_calendar_display_rules_are_not_duplicated_in_components():
     date_ts = (PROJECT_ROOT / "frontend" / "src" / "lib" / "date.ts").read_text(encoding="utf-8")
     app_tsx = (PROJECT_ROOT / "frontend" / "src" / "components" / "TodoManagerApp.tsx").read_text(encoding="utf-8")
+    todo_data = (PROJECT_ROOT / "frontend" / "src" / "lib" / "todo-data.ts").read_text(encoding="utf-8")
     today_rail = (PROJECT_ROOT / "frontend" / "src" / "components" / "todo" / "TodayRail.tsx").read_text(encoding="utf-8")
     calendar = (PROJECT_ROOT / "frontend" / "src" / "components" / "calendar" / "CalendarWorkbench.tsx").read_text(encoding="utf-8")
 
-    assert "date <= today" in date_ts
-    assert "shouldShowTaskOnDate(key, task, today)" in date_ts
-    assert "shouldShowTaskOnDate(selectedDate, task, today)" in today_rail
-    assert "shouldShowTaskOnDate(selectedDate, task, today)" in calendar
+    assert "shouldShowTaskOnDate" not in date_ts
+    assert "shouldShowTaskOnDate" not in app_tsx
+    assert "shouldShowTaskOnDate" not in today_rail
+    assert "shouldShowTaskOnDate" not in calendar
+    assert "listTasksForDates" in todo_data
+    assert "listTasksForDates" in app_tsx
     assert "loadedTasks[0]" not in app_tsx
 
 

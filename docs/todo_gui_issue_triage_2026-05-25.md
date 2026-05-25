@@ -22,13 +22,14 @@ get_tasks_for_date("今天+10天") -> []
 get_tasks_for_date("区间内日期") -> ["区间内仍应展示"]
 ```
 
-React 前端此前还在 `frontend/src/lib/date.ts::dateInRange` 中重复实现了仅按 `[start_date, end_date]` 判断的规则，因此即使 engine 修复，如果 GUI 仍通过 `listTasks()` 后在前端过滤，日历格、今日 rail、刷新选择逻辑仍会漏掉逾期未完成任务。
+React 前端此前还在 `frontend/src/lib/date.ts::dateInRange` / `shouldShowTaskOnDate` 中重复实现展示规则，因此即使 engine 修复，如果 GUI 仍通过 `listTasks()` 后在前端过滤，日历格、今日 rail、刷新选择逻辑仍可能与引擎规则漂移。
 
 修复方案：
 
 - 在 engine 增加统一谓词 `should_show_task_on_date(task, date_str)`。
 - 规则改为：`start_date <= T <= end_date`，或 `T <= 今天 且 start_date <= T 且 status in ("未启动", "完成中")`。
-- 前端新增同语义 `shouldShowTaskOnDate(date, task, today)`，日历格、今日 rail、选中逻辑统一调用。
+- GUI bridge 新增 `listTasksForDates`，由 `engine.get_tasks_for_dates()` 返回各日期应展示任务。
+- React 前端移除 `shouldShowTaskOnDate` 展示谓词，日历格、今日 rail、选中逻辑改为消费 bridge 返回的 `tasksByDate`。
 - 补 regression test：覆盖今天仍展示、未来日期不按逾期持续展示、已完成/已取消逾期任务不展示。
 
 ## 2. QtWebEngine 渲染闪烁
@@ -112,3 +113,12 @@ if taskToSelect 不在当前日期展示:
 - `scripts/build.py all`：通过，生成 `dist/TodoManager/todo.exe`、`dist/TodoManager/todo-gui.exe`、`dist/TodoManager/desktop-react/` 和 `dist/TodoManager-windows-2026-05-25.zip`，release smoke / zip audit 通过。
 - 打包后 CLI smoke：已过截止日且状态仍未完成的任务在今天展示，在今天之后的未来日期不展示；未来日期位于任务自身 `[start_date, end_date]` 区间内时仍展示。
 - 当前打包尺寸：`todo-gui.exe` 218,866,468 bytes，`TodoManager-windows-2026-05-25.zip` 227,079,435 bytes。轻量化目前仅进入 M7.5 计划，尚未执行依赖裁剪，所以尺寸不会下降。
+
+2026-05-25 架构收敛记录：
+
+- CLI：`todo list --date` / `todo cal` 继续通过 `engine.get_tasks_for_date()` 获取展示结果。
+- GUI：桌面 bridge 新增批量接口 `listTasksForDates`，内部调用 `engine.get_tasks_for_dates()`；React 组件不再保存独立展示规则，只根据 `tasksByDate[date]` 渲染。
+- 保留浏览器预览模式的本地 demo fallback；桌面壳若 bridge 不可用会报错，不会回退到预览数据。
+- 新增 bridge 回归测试：`listTasksForDates` 对同一逾期未完成任务，今天返回任务、未来日期返回空列表。
+- 验证：`python -m compileall engine cli gui scripts` 通过；`pytest tests/test_react_shell_bridge.py tests/test_task_manager.py tests/test_release_packaging.py -q` 为 107 passed；`pytest -q` 为 214 passed；`npm.cmd run lint/typecheck/build` 通过；`scripts/build.py all` 通过并重新生成 release 包。
+- 当前打包尺寸：`todo-gui.exe` 218,866,808 bytes，`TodoManager-windows-2026-05-25.zip` 227,082,390 bytes。

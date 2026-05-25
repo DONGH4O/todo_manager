@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import date, timedelta
 
 from todo_manager.gui import react_shell
 from todo_manager.gui.react_shell import TodoBridge
@@ -79,6 +80,49 @@ def test_react_shell_bridge_uses_cli_json_contract(tmp_path):
     )
     assert restored["ok"] is True
     assert restored["result"]["deleted"] is False
+
+
+def test_react_shell_bridge_lists_display_tasks_for_dates_from_engine(tmp_path):
+    bridge = TodoBridge(data_dir=str(tmp_path))
+    today = date.today()
+    start = (today - timedelta(days=20)).isoformat()
+    end = (today - timedelta(days=10)).isoformat()
+    today_str = today.isoformat()
+    future_str = (today + timedelta(days=10)).isoformat()
+
+    created = json.loads(
+        bridge.request(
+            json.dumps(
+                {
+                    "action": "createTask",
+                    "payload": {
+                        "title": "逾期仍由引擎展示",
+                        "start_date": start,
+                        "end_date": end,
+                        "status": "完成中",
+                        "background": "GUI 只请求 engine 展示结果",
+                    },
+                },
+                ensure_ascii=False,
+            )
+        )
+    )
+    assert created["ok"] is True
+
+    listed = json.loads(
+        bridge.request(
+            json.dumps(
+                {
+                    "action": "listTasksForDates",
+                    "payload": {"dates": [today_str, future_str]},
+                }
+            )
+        )
+    )
+
+    assert listed["ok"] is True
+    assert [task["id"] for task in listed["result"][today_str]] == [created["result"]["id"]]
+    assert listed["result"][future_str] == []
 
 
 def test_react_shell_bridge_decodes_windows_frozen_cli_output(monkeypatch, tmp_path):

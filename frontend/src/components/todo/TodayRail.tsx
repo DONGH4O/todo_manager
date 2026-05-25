@@ -1,4 +1,4 @@
-import { formatMonthDay, getMonthKey, shouldShowTaskOnDate } from "@/lib/date";
+import { formatMonthDay, getMonthKey } from "@/lib/date";
 import { MetricCard } from "@/components/todo/MetricCard";
 import { StatusFilterTabs } from "@/components/todo/StatusFilterTabs";
 import { TaskCard } from "@/components/todo/TaskCard";
@@ -6,8 +6,8 @@ import type { StatusFilter, Task } from "@/types/todo";
 
 interface TodayRailProps {
   tasks: Task[];
+  selectedDayTasks: Task[];
   selectedDate: string;
-  today: string;
   selectedTaskId: string | null;
   visibleYear: number;
   visibleMonth: number;
@@ -18,8 +18,8 @@ interface TodayRailProps {
 
 export function TodayRail({
   tasks,
+  selectedDayTasks,
   selectedDate,
-  today,
   selectedTaskId,
   visibleYear,
   visibleMonth,
@@ -29,7 +29,6 @@ export function TodayRail({
 }: TodayRailProps) {
   const monthKey = getMonthKey(visibleYear, visibleMonth);
   const monthTasks = tasks.filter((task) => task.start_date.startsWith(monthKey) || task.end_date.startsWith(monthKey));
-  const selectedDayTasks = tasks.filter((task) => shouldShowTaskOnDate(selectedDate, task, today));
   const filteredTasks = selectedDayTasks.filter((task) => filter === "all" || task.status === filter);
 
   const metrics = [

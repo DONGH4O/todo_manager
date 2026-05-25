@@ -17,6 +17,7 @@ export type SubtaskUpdate = Partial<SubtaskInput>;
 export interface TodoBridgeRequest {
   action:
     | "listTasks"
+    | "listTasksForDates"
     | "createTask"
     | "updateTask"
     | "deleteTask"
@@ -35,6 +36,8 @@ export interface TodoBridgeError {
 export type TodoBridgeResponse<T = unknown> =
   | { ok: true; result: T }
   | { ok: false; error: TodoBridgeError };
+
+export type TasksByDate = Record<string, Task[]>;
 
 declare global {
   interface Window {
@@ -179,11 +182,31 @@ function nextPreviewId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+const previewOngoingStatuses: TaskStatus[] = ["未启动", "完成中"];
+
+function previewTaskAppearsOnDate(date: string, task: Task): boolean {
+  const inRange = date >= task.start_date && date <= task.end_date;
+  const ongoingUntilToday =
+    date <= todayIso() && date >= task.start_date && previewOngoingStatuses.includes(task.status);
+  return inRange || ongoingUntilToday;
+}
+
 const previewStore = {
   async listTasks(): Promise<Task[]> {
     const tasks = readPreviewTasks();
     writePreviewTasks(tasks);
     return cloneTasks(tasks);
+  },
+
+  async listTasksForDates(dates: string[]): Promise<TasksByDate> {
+    const tasks = readPreviewTasks();
+    writePreviewTasks(tasks);
+    return Object.fromEntries(
+      Array.from(new Set(dates)).map((date) => [
+        date,
+        cloneTasks(tasks.filter((task) => previewTaskAppearsOnDate(date, task)))
+      ])
+    );
   },
 
   async createTask(input: TaskInput): Promise<Task> {
@@ -262,6 +285,21 @@ export const todoData = {
     if (await shouldUsePreviewStore()) return previewStore.listTasks();
     const tasks = await bridgeRequest<Task[]>({ action: "listTasks" });
     return tasks.map(normalizeTask).filter((task) => task.id);
+  },
+
+  async listTasksForDates(dates: string[]): Promise<TasksByDate> {
+    const uniqueDates = Array.from(new Set(dates));
+    if (await shouldUsePreviewStore()) return previewStore.listTasksForDates(uniqueDates);
+    const tasksByDate = await bridgeRequest<TasksByDate>({
+      action: "listTasksForDates",
+      payload: { dates: uniqueDates }
+    });
+    return Object.fromEntries(
+      uniqueDates.map((date) => [
+        date,
+        (tasksByDate[date] || []).map(normalizeTask).filter((task) => task.id)
+      ])
+    );
   },
 
   async createTask(input: TaskInput): Promise<Task> {

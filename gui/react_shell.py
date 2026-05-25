@@ -14,6 +14,7 @@ from todo_manager.engine.task_manager import (
     create_task,
     delete_task,
     get_task,
+    get_tasks_for_dates,
     list_all_tasks,
     undo_task,
     update_subtask,
@@ -31,6 +32,7 @@ from todo_manager.gui.icon import apply_app_icon
 ROOT = Path(__file__).resolve().parent.parent
 VALID_ACTIONS = {
     "listTasks",
+    "listTasksForDates",
     "createTask",
     "updateTask",
     "deleteTask",
@@ -129,6 +131,20 @@ class TodoBridge(QObject):
 
             if action == "listTasks":
                 return _response(True, [_object_payload(task) for task in list_all_tasks()])
+
+            if action == "listTasksForDates":
+                dates = payload.get("dates")
+                if not isinstance(dates, list):
+                    return _error("validation_error", "dates must be a list")
+                date_strs = [str(item) for item in dates if isinstance(item, str)]
+                tasks_by_date = get_tasks_for_dates(date_strs)
+                return _response(
+                    True,
+                    {
+                        date_str: [_object_payload(task) for task in tasks]
+                        for date_str, tasks in tasks_by_date.items()
+                    },
+                )
 
             if action == "createTask":
                 task = create_task(
