@@ -51,6 +51,12 @@
   --color-neutral-silver: #203747;
 }
 
+:root[data-desktop-shell="true"]:not([data-theme="dark"]),
+:root[data-theme="light"][data-desktop-shell="true"] {
+  --color-surface: #f8fbfd;
+  --color-surface-soft: #f4f8fb;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -118,6 +124,15 @@ select {
 }
 
 :root[data-desktop-shell="true"] .tm-desktop-paint-lite {
+  transition-property: opacity, transform !important;
+}
+
+:root[data-desktop-shell="true"] .tm-button,
+:root[data-desktop-shell="true"] .tm-button-primary,
+:root[data-desktop-shell="true"] .tm-button-danger,
+:root[data-desktop-shell="true"] .tm-icon-button,
+:root[data-desktop-shell="true"] .tm-input,
+:root[data-desktop-shell="true"] .tm-select {
   transition-property: opacity, transform !important;
 }
 
