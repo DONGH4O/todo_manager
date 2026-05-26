@@ -1,3 +1,5 @@
+import { useMemo } from "react";
+
 import { buildCalendarDays } from "@/lib/date";
 import { CalendarDayCell } from "@/components/calendar/CalendarDayCell";
 import type { Task } from "@/types/todo";
@@ -33,12 +35,18 @@ export function CalendarWorkbench({
   onYearChange,
   onMonthChange
 }: CalendarWorkbenchProps) {
-  const days = buildCalendarDays(visibleYear, visibleMonth, tasksByDate, selectedDate, today);
+  const days = useMemo(
+    () => buildCalendarDays(visibleYear, visibleMonth, tasksByDate, selectedDate, today),
+    [selectedDate, tasksByDate, today, visibleMonth, visibleYear]
+  );
   const weekCount = Math.ceil(days.length / 7);
-  const calendarGridStyle = {
-    gridTemplateRows: `repeat(${weekCount}, minmax(96px, 1fr))`,
-    minHeight: `${weekCount * 96 + (weekCount - 1) * 8}px`
-  };
+  const calendarGridStyle = useMemo(
+    () => ({
+      gridTemplateRows: `repeat(${weekCount}, minmax(96px, 1fr))`,
+      minHeight: `${weekCount * 96 + (weekCount - 1) * 8}px`
+    }),
+    [weekCount]
+  );
 
   return (
     <section className="tm-panel h-full min-h-0" data-figma-node="Center / 月历工作台">
