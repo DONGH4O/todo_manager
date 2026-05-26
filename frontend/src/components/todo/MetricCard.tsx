@@ -1,9 +1,11 @@
+import { memo } from "react";
+
 interface MetricCardProps {
   value: number;
   label: string;
 }
 
-export function MetricCard({ value, label }: MetricCardProps) {
+function MetricCardComponent({ value, label }: MetricCardProps) {
   return (
     <div className="min-h-[74px] rounded-default border border-line bg-surface-soft px-3 py-3">
       <b className="block font-display text-[22px] font-extrabold leading-tight text-ink">{value}</b>
@@ -11,3 +13,5 @@ export function MetricCard({ value, label }: MetricCardProps) {
     </div>
   );
 }
+
+export const MetricCard = memo(MetricCardComponent);

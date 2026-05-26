@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 import { getStatusTone } from "@/lib/tokens";
 import type { Task } from "@/types/todo";
 
@@ -5,7 +7,7 @@ interface MiniTaskPillProps {
   task: Task;
 }
 
-export function MiniTaskPill({ task }: MiniTaskPillProps) {
+function MiniTaskPillComponent({ task }: MiniTaskPillProps) {
   const tone = getStatusTone(task.status);
 
   return (
@@ -17,3 +19,5 @@ export function MiniTaskPill({ task }: MiniTaskPillProps) {
     </span>
   );
 }
+
+export const MiniTaskPill = memo(MiniTaskPillComponent);

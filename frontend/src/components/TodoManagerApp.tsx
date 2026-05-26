@@ -249,7 +249,7 @@ export function TodoManagerApp() {
     setSearchOpen(false);
   };
 
-  const handleSelectDate = async (date: string) => {
+  const handleSelectDate = useCallback(async (date: string) => {
     setSelectedDate(date);
     selectedDateRef.current = date;
     try {
@@ -264,7 +264,7 @@ export function TodoManagerApp() {
     } catch (error) {
       showToast(dataErrorMessage(error, "日历数据读取失败"));
     }
-  };
+  }, [loadDateTasks, selectTask, showToast]);
 
   const handlePreviousMonth = () => {
     if (visibleMonth === 0) {

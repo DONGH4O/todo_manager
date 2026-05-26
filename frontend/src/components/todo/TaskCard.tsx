@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 import { formatDateRange } from "@/lib/date";
 import { getStatusTone } from "@/lib/tokens";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -9,7 +11,7 @@ interface TaskCardProps {
   onSelect: (task: Task) => void;
 }
 
-export function TaskCard({ task, selected, onSelect }: TaskCardProps) {
+function TaskCardComponent({ task, selected, onSelect }: TaskCardProps) {
   const completedSubtasks = task.subtasks.filter((subtask) => subtask.status === "已完成").length;
   const tone = getStatusTone(task.status);
 
@@ -43,3 +45,5 @@ export function TaskCard({ task, selected, onSelect }: TaskCardProps) {
     </button>
   );
 }
+
+export const TaskCard = memo(TaskCardComponent);

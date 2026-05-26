@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 import { MiniTaskPill } from "@/components/calendar/MiniTaskPill";
 import type { CalendarDay } from "@/types/todo";
 
@@ -6,7 +8,7 @@ interface CalendarDayCellProps {
   onSelect: (date: string) => void;
 }
 
-export function CalendarDayCell({ day, onSelect }: CalendarDayCellProps) {
+function CalendarDayCellComponent({ day, onSelect }: CalendarDayCellProps) {
   return (
     <button
       type="button"
@@ -35,3 +37,5 @@ export function CalendarDayCell({ day, onSelect }: CalendarDayCellProps) {
     </button>
   );
 }
+
+export const CalendarDayCell = memo(CalendarDayCellComponent);
