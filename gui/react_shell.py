@@ -4,9 +4,46 @@ from __future__ import annotations
 
 import json
 import locale
+import os
 import sys
 from pathlib import Path
 from typing import Any
+
+QTWEBENGINE_SOFTWARE_RENDER_FLAGS = (
+    "--disable-gpu",
+    "--disable-gpu-compositing",
+    "--disable-gpu-rasterization",
+    "--disable-zero-copy",
+    "--disable-accelerated-2d-canvas",
+)
+
+
+def _flag_name(flag: str) -> str:
+    return flag.split("=", 1)[0]
+
+
+def _merge_chromium_flags(current: str, extra_flags: tuple[str, ...]) -> str:
+    flags = current.split()
+    existing = {_flag_name(flag) for flag in flags}
+    for flag in extra_flags:
+        if _flag_name(flag) not in existing:
+            flags.append(flag)
+    return " ".join(flags)
+
+
+def _configure_qtwebengine_rendering() -> None:
+    mode = os.environ.get("TODO_MANAGER_QTWEBENGINE_RENDERING", "software").strip().lower()
+    if mode in {"hardware", "gpu", "default"}:
+        return
+
+    os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = _merge_chromium_flags(
+        os.environ.get("QTWEBENGINE_CHROMIUM_FLAGS", ""),
+        QTWEBENGINE_SOFTWARE_RENDER_FLAGS,
+    )
+    os.environ.setdefault("QT_OPENGL", "software")
+
+
+_configure_qtwebengine_rendering()
 
 from todo_manager.engine.storage import DataFileError, DataWriteError, set_data_dir
 from todo_manager.engine.task_manager import (
