@@ -9,7 +9,7 @@
 > - 2026-05-24：新增 M6.6 应用图标与桌面品牌资产，在 M6.5 React 桌面发布界面基础上补齐 Windows/macOS GUI 任务栏、桌面和 `.app` 品牌图标。
 > - 2026-05-24：React GUI 切换为默认 `todo-gui` 入口；旧 PySide6 widget GUI 归档到 `archive/legacy-pyside6-gui/`，后续里程碑不再围绕旧 GUI 开发或验收。
 > - 2026-05-25：M7 完成。Public GitHub repo 已创建并推送 `main`，GitHub Actions 已在 Windows/macOS 通过；repo URL 为 `https://github.com/DONGH4O/todo_manager`。
-> - 2026-05-25：新增 M7.5 桌面 GUI 轻量化优化计划。该项仅纳入路线图，当前不启动实施；优先处理真实使用中发现的引擎与 GUI 稳定性问题。
+> - 2026-05-25：新增 M7.5 桌面 GUI 轻量化优化计划；同日完成 Windows 本地可完成项，`todo-gui.exe` 和 Windows zip 体积较 M6.5/M7 基线下降，验证记录见 `docs/m7_5_validation_report.md`。
 
 ## 1. 执行原则
 
@@ -391,7 +391,7 @@
 
 ### M7.5. 桌面 GUI 轻量化优化
 
-状态：未启动。2026-05-25 已完成一次只读体积排查，确认当前 `todo-gui.exe` 主要体积来自 PySide6 QtWebEngine/Chromium 运行时；该里程碑仅纳入后续计划，当前不开展实现。
+状态：Windows 本地可完成项已完成（2026-05-25）。已新增可复现体积审计脚本、`build_gui.spec` 低风险 PyInstaller/QtWebEngine 裁剪策略、release smoke 回流检查和验证报告；`todo-gui.exe` 从 218,866,808 bytes 降至 170,487,859 bytes，Windows zip 从 227,082,390 bytes 降至 178,811,133 bytes。macOS `.app` 体积复核与实机窗口 smoke 仍待 macOS 环境补证。验证记录见 `docs/m7_5_validation_report.md`。
 
 目标：在不牺牲 React 桌面 GUI 稳定性、中文显示、日期选择器和核心任务流的前提下，降低 Windows/macOS 发布包体积，并为后续发布候选建立可复现的体积审计口径。
 

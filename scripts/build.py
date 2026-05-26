@@ -7,6 +7,7 @@ Usage:
     python scripts/build.py react
     python scripts/build.py zip
     python scripts/build.py smoke
+    python scripts/build.py audit-size
 
 The script builds the current host platform only. Run it once on Windows and
 once on macOS to produce the two supported release bundles.
@@ -85,7 +86,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "target",
         nargs="?",
         default="all",
-        choices=("all", "cli", "gui", "react", "zip", "smoke"),
+        choices=("all", "cli", "gui", "react", "zip", "smoke", "audit-size"),
         help="Release target to build or validate.",
     )
     parser.add_argument(
@@ -352,6 +353,28 @@ def run_release_smoke(profile: PlatformProfile, zip_path: Path | None = None) ->
     run(cmd, "Release smoke")
 
 
+def find_latest_zip(profile: PlatformProfile) -> Path | None:
+    candidates = sorted(
+        DIST_ROOT.glob(f"{APP_DIR_NAME}-{profile.key}-*.zip"),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    return candidates[0] if candidates else None
+
+
+def run_size_audit(profile: PlatformProfile, zip_path: Path | None = None) -> None:
+    cmd = [
+        sys.executable,
+        str(ROOT / "scripts" / "audit_release_size.py"),
+        "--release-dir",
+        str(DIST),
+    ]
+    target_zip = zip_path or find_latest_zip(profile)
+    if target_zip is not None:
+        cmd.extend(["--zip", str(target_zip)])
+    run(cmd, "Release size audit")
+
+
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     profile = profile_for_platform()
@@ -380,6 +403,8 @@ def main(argv: list[str] | None = None) -> int:
             zip_path = create_zip(profile)
         if args.target == "smoke":
             run_release_smoke(profile)
+        if args.target == "audit-size":
+            run_size_audit(profile)
         if args.target in {"all", "zip"} and not args.skip_smoke:
             run_release_smoke(profile, zip_path)
 

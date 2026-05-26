@@ -47,6 +47,19 @@ def test_gui_spec_embeds_application_icons():
     assert (PROJECT_ROOT / "assets" / "icons" / "todo-manager.png").exists()
 
 
+def test_gui_spec_defines_m75_lightweight_pruning_policy():
+    spec_text = (PROJECT_ROOT / "build_gui.spec").read_text(encoding="utf-8")
+
+    assert "QTWEBENGINE_ALLOWED_LOCALES" in spec_text
+    assert '"zh-cn"' in spec_text
+    assert '"en-us"' in spec_text
+    assert "qtwebengine_devtools" in spec_text
+    assert "PySide6.QtCharts" in spec_text
+    assert "PySide6.QtPdf" in spec_text
+    assert "PySide6.QtQuick3D" in spec_text
+    assert "_should_prune_toc_entry" in spec_text
+
+
 def test_react_status_controls_avoid_native_select_popups():
     create_task = (PROJECT_ROOT / "frontend" / "src" / "components" / "todo" / "CreateTaskModal.tsx").read_text(encoding="utf-8")
     create_subtask = (PROJECT_ROOT / "frontend" / "src" / "components" / "todo" / "CreateSubtaskModal.tsx").read_text(encoding="utf-8")
@@ -136,6 +149,73 @@ def test_release_tree_audit_rejects_cache_and_source_files(tmp_path):
     assert any("__pycache__" in error for error in errors)
     assert any("leaked_source.py" in error for error in errors)
     assert any(".next" in error for error in errors)
+
+
+def test_release_tree_audit_rejects_m75_pruned_qt_content(tmp_path):
+    smoke = _load_script("smoke_release.py")
+    profile = smoke.profile_for_platform("windows")
+
+    for name in ("todo.exe", "todo-gui.exe", "Readme.txt", "install.bat", "todo-react.bat"):
+        (tmp_path / name).write_text("placeholder", encoding="utf-8")
+    _write_react_desktop_artifacts(tmp_path)
+    (tmp_path / "PySide6" / "Qt" / "resources").mkdir(parents=True)
+    (tmp_path / "PySide6" / "Qt" / "resources" / "qtwebengine_devtools_resources.pak").write_bytes(b"debug")
+    (tmp_path / "PySide6" / "Qt" / "translations" / "qtwebengine_locales").mkdir(parents=True)
+    (
+        tmp_path
+        / "PySide6"
+        / "Qt"
+        / "translations"
+        / "qtwebengine_locales"
+        / "de-DE.pak"
+    ).write_bytes(b"locale")
+    (tmp_path / "PySide6" / "Qt6Charts.dll").write_bytes(b"unused")
+
+    errors = smoke.audit_release_tree(tmp_path, profile)
+
+    assert any("qtwebengine_devtools_resources.pak" in error for error in errors)
+    assert any("de-DE.pak" in error for error in errors)
+    assert any("Qt6Charts.dll" in error for error in errors)
+
+
+def test_release_size_audit_reports_categories_and_policy_violations(tmp_path):
+    audit = _load_script("audit_release_size.py")
+    release_dir = tmp_path / "TodoManager"
+    release_dir.mkdir()
+    (release_dir / "todo-gui.exe").write_bytes(b"g" * 100)
+    (release_dir / "todo.exe").write_bytes(b"c" * 10)
+    _write_react_desktop_artifacts(release_dir)
+    (release_dir / "desktop-react" / "ui" / "index.html").write_bytes(b"r" * 20)
+
+    report = audit.build_report(release_dir, None, None)
+
+    categories = {
+        category["name"]: category["bytes"]
+        for category in report["inputs"][0]["categories"]
+    }
+    assert categories["gui_binary"] == 100
+    assert categories["cli_binary"] == 10
+    assert categories["react_desktop"] >= 20
+    assert report["policy_violations"] == []
+
+    bad_records = [
+        audit.SizeRecord(
+            source="toc:test",
+            path="PySide6/Qt/translations/qtwebengine_locales/fr-FR.pak",
+            size=1,
+        ),
+        audit.SizeRecord(
+            source="toc:test",
+            path="PySide6/Qt/resources/qtwebengine_devtools_resources.pak",
+            size=1,
+        ),
+    ]
+    violations = audit.audit_pruning_policy(bad_records)
+
+    assert {violation.rule for violation in violations} == {
+        "qtwebengine_locale",
+        "qtwebengine_devtools",
+    }
 
 
 def test_zip_audit_accepts_macos_app_bundle_without_directory_entries(tmp_path):

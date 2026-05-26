@@ -2,6 +2,7 @@
 """PyInstaller spec for the Todo Manager GUI artifact."""
 
 import sys
+import re
 from pathlib import Path
 
 
@@ -12,6 +13,50 @@ _icon_dir = _project_root / "assets" / "icons"
 _windows_icon = _icon_dir / "todo-manager.ico"
 _macos_icon = _icon_dir / "todo-manager.icns"
 _exe_icon = _macos_icon if sys.platform == "darwin" else _windows_icon
+
+QTWEBENGINE_ALLOWED_LOCALES = {"en-us", "zh-cn"}
+_QTWEBENGINE_LOCALE_RE = re.compile(
+    r"(?:^|[\\/])(?:qtwebengine_)?locales[\\/](?P<tag>[a-z]{2}(?:[-_][a-z]{2})?)\.pak$",
+    re.IGNORECASE,
+)
+_PRUNED_QT_MARKERS = (
+    "devtools",
+    "qtwebengine_devtools",
+    "qt3d",
+    "qt6charts",
+    "qtcharts",
+    "qt6datavisualization",
+    "qtdatavisualization",
+    "qt6multimedia",
+    "qtmultimedia",
+    "qt6pdf",
+    "qtpdf",
+    "qt6quick3d",
+    "qtquick3d",
+)
+
+
+def _toc_text(entry):
+    return "/".join(
+        str(part).replace("\\", "/").lower()
+        for part in entry[:2]
+        if isinstance(part, str)
+    )
+
+
+def _qtwebengine_locale_tag(text):
+    match = _QTWEBENGINE_LOCALE_RE.search(text)
+    if match is None:
+        return None
+    return match.group("tag").replace("_", "-").lower()
+
+
+def _should_prune_toc_entry(entry):
+    text = _toc_text(entry)
+    locale = _qtwebengine_locale_tag(text)
+    if locale is not None and locale not in QTWEBENGINE_ALLOWED_LOCALES:
+        return True
+    return any(marker in text for marker in _PRUNED_QT_MARKERS)
 
 a = Analysis(
     [str(_project_root / "gui" / "main.py")],
@@ -46,12 +91,32 @@ a = Analysis(
         "unittest",
         "tkinter",
         "matplotlib",
+        "PySide6.Qt3DAnimation",
+        "PySide6.Qt3DCore",
+        "PySide6.Qt3DExtras",
+        "PySide6.Qt3DInput",
+        "PySide6.Qt3DLogic",
+        "PySide6.Qt3DRender",
+        "PySide6.QtCharts",
+        "PySide6.QtDataVisualization",
+        "PySide6.QtMultimedia",
+        "PySide6.QtMultimediaWidgets",
+        "PySide6.QtPdf",
+        "PySide6.QtPdfWidgets",
+        "PySide6.QtQuick3D",
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=None,
     noarchive=False,
 )
+
+# M7.5 lightweight GUI policy. Keep QtWebEngine, QtWebChannel and Widgets, but
+# prune debug/devtools resources, unused Qt add-on modules, and nonessential
+# Chromium locale packs from the one-file GUI archive.
+a.binaries = [entry for entry in a.binaries if not _should_prune_toc_entry(entry)]
+a.datas = [entry for entry in a.datas if not _should_prune_toc_entry(entry)]
+a.zipfiles = [entry for entry in a.zipfiles if not _should_prune_toc_entry(entry)]
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=None)
 

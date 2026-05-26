@@ -2,7 +2,7 @@
 
 > 版本：v0.1  
 > 日期：2026-05-24  
-> 覆盖范围：M7 GitHub 与 CI、M10 发布候选验收前置清单  
+> 覆盖范围：M7 GitHub 与 CI、M7.5 桌面 GUI 轻量化、M10 发布候选验收前置清单  
 > GitHub repo URL：<https://github.com/DONGH4O/todo_manager>
 
 本清单用于每次发布候选前确认源码、CI、React 桌面界面、发布包和文档处于同一状态。勾选项应以命令输出、CI run 链接、release zip 文件清单或人工验收记录为证据。
@@ -75,6 +75,7 @@ Windows：
 ```powershell
 .\.venv\Scripts\python.exe scripts\build.py all
 .\.venv\Scripts\python.exe scripts\smoke_release.py --platform windows --release-dir dist\TodoManager --zip dist\TodoManager-windows-YYYY-MM-DD.zip
+.\.venv\Scripts\python.exe scripts\build.py audit-size
 ```
 
 macOS：
@@ -89,6 +90,8 @@ python scripts/smoke_release.py --platform macos --release-dir dist/TodoManager 
 - [ ] Windows release zip 通过文件清单审计和 CLI/GUI `--help` smoke。
 - [ ] macOS release zip 通过文件清单审计和 CLI/GUI `--help` smoke。
 - [ ] release 包不包含 `.venv`、`.git`、`__pycache__`、`.pytest_cache`、`tests`、源码 `.py`、`node_modules`、`.next`。
+- [ ] M7.5 体积审计通过，未发现 QtWebEngine debug/devtools、多余 locale 或未使用 Qt 模块回流。
+- [ ] `todo-gui` 与 release zip 体积已记录，并与上一条发布基线对比。
 - [ ] `desktop-react/manifest.json` 和 `desktop-react/ui/index.html` 存在。
 - [ ] Windows `todo-gui.exe` 嵌入项目 `.ico`。
 - [ ] macOS `TodoManager.app` 嵌入项目 `.icns`。

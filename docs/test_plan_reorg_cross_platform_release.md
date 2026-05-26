@@ -287,6 +287,30 @@ M7 起最小 CI gate 由 `.github/workflows/ci.yml` 承载，覆盖 `windows-lat
 
 CI 不替代完整 PyInstaller release build；完整发布包仍按 3.7 在 Windows/macOS 原生环境执行 `scripts/build.py all` 与完整 `scripts/smoke_release.py`。
 
+### 3.8.8 桌面 GUI 轻量化测试
+
+M7.5 起需覆盖 `todo-gui` 发布体积审计和 PyInstaller/QtWebEngine 裁剪策略：
+
+- `scripts/audit_release_size.py` 可对 release 目录、zip 和 PyInstaller `PKG-00.toc` 输出分类体积。
+- `build_gui.spec` 保留 QtWebEngine、QtWebChannel、Widgets 和核心 runtime，排除 debug/devtools、多余 QtWebEngine locale 和未使用 Qt add-on 模块。
+- `scripts/smoke_release.py` 在 release tree / zip 审计中拒绝裁剪资源回流。
+- Windows/macOS 完整发布包均需记录 `todo-gui`、release zip 和 `desktop-react/` 体积。
+- 发布候选阶段仍需真实窗口 smoke，覆盖启动、桥接、新建、编辑、删除、撤销、日期选择器、状态菜单、搜索、主题切换和图标显示。
+
+Windows 示例：
+
+```powershell
+.\.venv\Scripts\python.exe scripts\build.py all
+.\.venv\Scripts\python.exe scripts\build.py audit-size
+.\.venv\Scripts\python.exe scripts\smoke_release.py --platform windows --release-dir dist\TodoManager --zip dist\TodoManager-windows-YYYY-MM-DD.zip
+```
+
+验收：
+
+- `todo-gui` 发布体积较 M6.5/M7 基线有明确下降，且变化可复现。
+- 体积审计未发现 debug/devtools、多余 locale、无关 Qt 模块或前端缓存回流。
+- 若体积目标与稳定性冲突，以稳定性为优先级。
+
 ### 3.9 SKILL 测试
 
 使用一个独立数据目录验证 agent 工作流：

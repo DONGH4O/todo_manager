@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import subprocess
 import sys
 import zipfile
@@ -25,6 +26,27 @@ FORBIDDEN_NAMES = {
     "tests",
 }
 FORBIDDEN_SUFFIXES = {".py", ".pyc", ".pyo", ".tsbuildinfo"}
+
+M75_ALLOWED_QTWEBENGINE_LOCALES = {"en-us", "zh-cn"}
+M75_QTWEBENGINE_LOCALE_RE = re.compile(
+    r"(?:^|[\\/])(?:qtwebengine_)?locales[\\/](?P<tag>[a-z]{2}(?:[-_][a-z]{2})?)\.pak$",
+    re.IGNORECASE,
+)
+M75_FORBIDDEN_QT_MARKERS = (
+    "devtools",
+    "qtwebengine_devtools",
+    "qt3d",
+    "qt6charts",
+    "qtcharts",
+    "qt6datavisualization",
+    "qtdatavisualization",
+    "qt6multimedia",
+    "qtmultimedia",
+    "qt6pdf",
+    "qtpdf",
+    "qt6quick3d",
+    "qtquick3d",
+)
 
 
 @dataclass(frozen=True)
@@ -97,6 +119,28 @@ def _is_forbidden_path(parts: tuple[str, ...], suffix: str) -> bool:
     return suffix.lower() in FORBIDDEN_SUFFIXES
 
 
+def _m75_pruning_errors(rel_path: Path) -> list[str]:
+    path_text = rel_path.as_posix()
+    normalized = f"/{path_text.lower()}/"
+    errors: list[str] = []
+
+    locale_match = M75_QTWEBENGINE_LOCALE_RE.search(path_text)
+    if locale_match:
+        locale = locale_match.group("tag").replace("_", "-").lower()
+        if locale not in M75_ALLOWED_QTWEBENGINE_LOCALES:
+            errors.append(
+                f"M7.5 forbidden QtWebEngine locale: {path_text} "
+                f"(allowed: {', '.join(sorted(M75_ALLOWED_QTWEBENGINE_LOCALES))})"
+            )
+
+    for marker in M75_FORBIDDEN_QT_MARKERS:
+        if marker in normalized:
+            errors.append(f"M7.5 forbidden Qt runtime content: {path_text}")
+            break
+
+    return errors
+
+
 def audit_release_tree(release_dir: Path, profile: ReleaseProfile) -> list[str]:
     errors: list[str] = []
     if not release_dir.exists():
@@ -112,8 +156,10 @@ def audit_release_tree(release_dir: Path, profile: ReleaseProfile) -> list[str]:
             errors.append(f"missing React desktop artifact: {artifact.as_posix()}")
 
     for path in release_dir.rglob("*"):
-        if _is_forbidden_path(path.relative_to(release_dir).parts, path.suffix):
-            errors.append(f"forbidden release content: {path.relative_to(release_dir).as_posix()}")
+        rel_path = path.relative_to(release_dir)
+        if _is_forbidden_path(rel_path.parts, path.suffix):
+            errors.append(f"forbidden release content: {rel_path.as_posix()}")
+        errors.extend(_m75_pruning_errors(rel_path))
 
     return errors
 
@@ -134,8 +180,10 @@ def audit_react_desktop_tree(release_dir: Path, profile: ReleaseProfile) -> list
             errors.append(f"missing React desktop artifact: {artifact.as_posix()}")
 
     for path in release_dir.rglob("*"):
-        if _is_forbidden_path(path.relative_to(release_dir).parts, path.suffix):
-            errors.append(f"forbidden release content: {path.relative_to(release_dir).as_posix()}")
+        rel_path = path.relative_to(release_dir)
+        if _is_forbidden_path(rel_path.parts, path.suffix):
+            errors.append(f"forbidden release content: {rel_path.as_posix()}")
+        errors.extend(_m75_pruning_errors(rel_path))
 
     return errors
 
@@ -175,6 +223,7 @@ def audit_zip(
             parts = tuple(part for part in Path(name).parts if part not in {"", "."})
             if _is_forbidden_path(parts, Path(name).suffix):
                 errors.append(f"zip forbidden content: {name}")
+            errors.extend(f"zip {error}" for error in _m75_pruning_errors(Path(name)))
 
     return errors
 
