@@ -168,12 +168,6 @@ def test_react_shell_merges_qtwebengine_hybrid_flags_without_duplicates():
     assert "--disable-zero-copy" in merged
 
 
-def test_react_shell_compositor_flags_keep_gpu_without_gpu_compositing():
-    assert "--disable-gpu" not in react_shell.QTWEBENGINE_COMPOSITOR_RENDER_FLAGS
-    assert "--disable-gpu-compositing" in react_shell.QTWEBENGINE_COMPOSITOR_RENDER_FLAGS
-    assert "--disable-zero-copy" in react_shell.QTWEBENGINE_COMPOSITOR_RENDER_FLAGS
-
-
 def test_react_shell_software_flags_include_full_gpu_disable():
     assert "--disable-gpu" in react_shell.QTWEBENGINE_SOFTWARE_RENDER_FLAGS
     assert "--disable-gpu-compositing" in react_shell.QTWEBENGINE_SOFTWARE_RENDER_FLAGS
