@@ -18,7 +18,7 @@ function TaskCardComponent({ task, selected, onSelect }: TaskCardProps) {
   return (
     <button
       type="button"
-      className={`min-h-[144px] w-full rounded-default border bg-surface-soft p-3 text-left transition hover:border-line-strong hover:bg-surface ${
+      className={`tm-desktop-paint-lite min-h-[144px] w-full rounded-default border bg-surface-soft p-3 text-left transition hover:border-line-strong hover:bg-surface ${
         selected ? "border-primary shadow-focus" : "border-line"
       }`}
       title={`查看 ${task.title}`}

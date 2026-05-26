@@ -21,7 +21,7 @@ export function SearchResultsDropdown({ query, results, onSelect }: SearchResult
             <button
               key={task.id}
               type="button"
-              className={`grid w-full grid-cols-[1fr_auto] items-center gap-3 rounded-default px-3 py-2 text-left transition hover:bg-primary-soft ${
+              className={`tm-desktop-paint-lite grid w-full grid-cols-[1fr_auto] items-center gap-3 rounded-default px-3 py-2 text-left transition hover:bg-primary-soft ${
                 index === 0 ? "bg-primary-soft" : ""
               }`}
               title={`定位 ${task.title}`}

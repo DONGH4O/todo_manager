@@ -13,7 +13,7 @@ export function StatusSegmentedControl({ value, onChange }: StatusSegmentedContr
         <button
           key={status}
           type="button"
-          className={`min-w-0 rounded-[6px] px-2 text-[12px] font-medium transition ${
+          className={`tm-desktop-paint-lite min-w-0 rounded-[6px] px-2 text-[12px] font-medium transition ${
             value === status
               ? "border border-line-strong bg-surface-strong text-ink shadow-sm"
               : "text-muted hover:bg-surface"

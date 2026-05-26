@@ -13,7 +13,7 @@ export function StatusFilterTabs({ value, onChange }: StatusFilterTabsProps) {
         <button
           key={tab.value}
           type="button"
-          className={`h-8 rounded-default text-[12px] font-medium transition ${
+          className={`tm-desktop-paint-lite h-8 rounded-default text-[12px] font-medium transition ${
             value === tab.value ? "border border-line bg-surface-strong text-ink" : "text-muted hover:bg-surface-soft"
           }`}
           onClick={() => onChange(tab.value)}

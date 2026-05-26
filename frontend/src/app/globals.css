@@ -117,7 +117,7 @@ select {
   backdrop-filter: none !important;
 }
 
-:root[data-desktop-shell="true"] * {
+:root[data-desktop-shell="true"] .tm-desktop-paint-lite {
   transition-property: opacity, transform !important;
 }
 

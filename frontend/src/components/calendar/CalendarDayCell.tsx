@@ -12,7 +12,7 @@ function CalendarDayCellComponent({ day, onSelect }: CalendarDayCellProps) {
   return (
     <button
       type="button"
-      className={`group flex h-full min-h-0 flex-col rounded-default border p-2 text-left transition ${
+      className={`tm-desktop-paint-lite group flex h-full min-h-0 flex-col rounded-default border p-2 text-left transition ${
         day.isSelected ? "border-primary shadow-focus" : "border-line hover:border-line-strong"
       } ${day.isToday ? "bg-[linear-gradient(135deg,var(--color-primary-soft),var(--color-secondary-soft))]" : "bg-surface-soft"} ${
         day.isOutsideMonth ? "opacity-55" : ""
