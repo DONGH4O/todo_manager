@@ -154,21 +154,15 @@ def test_react_shell_bridge_decodes_windows_frozen_cli_output(monkeypatch, tmp_p
     assert response["result"]["tasks"][0]["status"] == "完成中"
 
 
-def test_react_shell_merges_qtwebengine_hybrid_flags_without_duplicates():
+def test_react_shell_merges_qtwebengine_rendering_flags_without_duplicates():
     merged = react_shell._merge_chromium_flags(
-        "--disable-gpu-rasterization --remote-debugging-port=9234",
-        react_shell.QTWEBENGINE_HYBRID_RENDER_FLAGS,
+        "--disable-gpu --remote-debugging-port=9234",
+        react_shell.QTWEBENGINE_SOFTWARE_RENDER_FLAGS,
     )
 
     flags = merged.split()
 
-    assert flags.count("--disable-gpu-rasterization") == 1
+    assert flags.count("--disable-gpu") == 1
     assert "--remote-debugging-port=9234" in merged
+    assert "--disable-gpu-compositing" in merged
     assert "--disable-gpu-rasterization" in merged
-    assert "--disable-zero-copy" in merged
-
-
-def test_react_shell_software_flags_include_full_gpu_disable():
-    assert "--disable-gpu" in react_shell.QTWEBENGINE_SOFTWARE_RENDER_FLAGS
-    assert "--disable-gpu-compositing" in react_shell.QTWEBENGINE_SOFTWARE_RENDER_FLAGS
-    assert "--disable-gpu-rasterization" in react_shell.QTWEBENGINE_SOFTWARE_RENDER_FLAGS
