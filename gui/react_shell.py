@@ -14,10 +14,15 @@ QTWEBENGINE_HYBRID_RENDER_FLAGS = (
     "--disable-zero-copy",
 )
 
+QTWEBENGINE_COMPOSITOR_RENDER_FLAGS = (
+    "--disable-gpu-compositing",
+    "--disable-zero-copy",
+)
+
 QTWEBENGINE_SOFTWARE_RENDER_FLAGS = (
     "--disable-gpu",
-    "--disable-gpu-compositing",
-    *QTWEBENGINE_HYBRID_RENDER_FLAGS,
+    *QTWEBENGINE_COMPOSITOR_RENDER_FLAGS,
+    "--disable-gpu-rasterization",
     "--disable-accelerated-2d-canvas",
 )
 
@@ -36,15 +41,17 @@ def _merge_chromium_flags(current: str, extra_flags: tuple[str, ...]) -> str:
 
 
 def _configure_qtwebengine_rendering() -> None:
-    mode = os.environ.get("TODO_MANAGER_QTWEBENGINE_RENDERING", "hybrid").strip().lower()
+    mode = os.environ.get("TODO_MANAGER_QTWEBENGINE_RENDERING", "compositor").strip().lower()
     if mode in {"hardware", "gpu", "default"}:
         return
 
     if mode in {"software", "cpu"}:
         flags = QTWEBENGINE_SOFTWARE_RENDER_FLAGS
         os.environ.setdefault("QT_OPENGL", "software")
-    else:
+    elif mode in {"hybrid", "raster"}:
         flags = QTWEBENGINE_HYBRID_RENDER_FLAGS
+    else:
+        flags = QTWEBENGINE_COMPOSITOR_RENDER_FLAGS
 
     os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = _merge_chromium_flags(
         os.environ.get("QTWEBENGINE_CHROMIUM_FLAGS", ""),
