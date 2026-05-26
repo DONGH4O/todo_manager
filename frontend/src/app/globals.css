@@ -118,7 +118,7 @@ select {
 }
 
 :root[data-desktop-shell="true"] * {
-  transition-property: color, background-color, border-color, box-shadow, opacity !important;
+  transition-property: opacity, transform !important;
 }
 
 @layer components {
