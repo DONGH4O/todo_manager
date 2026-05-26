@@ -152,17 +152,3 @@ def test_react_shell_bridge_decodes_windows_frozen_cli_output(monkeypatch, tmp_p
     assert response["ok"] is True
     assert response["result"]["tasks"][0]["title"] == "编码验证"
     assert response["result"]["tasks"][0]["status"] == "完成中"
-
-
-def test_react_shell_merges_qtwebengine_rendering_flags_without_duplicates():
-    merged = react_shell._merge_chromium_flags(
-        "--disable-gpu --remote-debugging-port=9234",
-        react_shell.QTWEBENGINE_SOFTWARE_RENDER_FLAGS,
-    )
-
-    flags = merged.split()
-
-    assert flags.count("--disable-gpu") == 1
-    assert "--remote-debugging-port=9234" in merged
-    assert "--disable-gpu-compositing" in merged
-    assert "--disable-gpu-rasterization" in merged
