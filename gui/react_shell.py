@@ -11,10 +11,15 @@ from typing import Any
 
 QTWEBENGINE_RENDERING_ENV = "TODO_MANAGER_QTWEBENGINE_RENDERING"
 QTWEBENGINE_CHROMIUM_FLAGS_ENV = "QTWEBENGINE_CHROMIUM_FLAGS"
+DEFAULT_RENDERING_MODE = "angle-d3d9"
 DIRECT_COMPOSITION_FLAGS = (
     "--disable-direct-composition",
     "--disable-direct-composition-video-overlays",
 )
+ANGLE_DEFAULT_FLAGS = ("--use-gl=angle", "--use-angle=default")
+ANGLE_D3D11_FLAGS = ("--use-gl=angle", "--use-angle=d3d11")
+ANGLE_D3D9_FLAGS = ("--use-gl=angle", "--use-angle=d3d9")
+ANGLE_OPENGL_FLAGS = ("--use-gl=angle", "--use-angle=gl")
 
 
 def _merge_chromium_flags(existing: str, flags: tuple[str, ...]) -> str:
@@ -28,16 +33,24 @@ def _merge_chromium_flags(existing: str, flags: tuple[str, ...]) -> str:
 
 
 def _qtwebengine_flags_for_rendering_mode(mode: str | None) -> tuple[str, ...] | None:
-    normalized = (mode or "direct-composition").strip().lower()
+    normalized = (mode or DEFAULT_RENDERING_MODE).strip().lower()
     if normalized in {"", "default", "hardware", "gpu", "system"}:
         return ()
+    if normalized in {"angle", "angle-default"}:
+        return ANGLE_DEFAULT_FLAGS
+    if normalized in {"angle-d3d11", "d3d11"}:
+        return ANGLE_D3D11_FLAGS
+    if normalized in {"angle-d3d9", "d3d9"}:
+        return ANGLE_D3D9_FLAGS
+    if normalized in {"angle-gl", "angle-opengl", "opengl", "gl"}:
+        return ANGLE_OPENGL_FLAGS
     if normalized in {"direct-composition", "dcomp", "disable-direct-composition"}:
         return DIRECT_COMPOSITION_FLAGS
     return None
 
 
 def _configure_qtwebengine_rendering() -> None:
-    mode = os.environ.get(QTWEBENGINE_RENDERING_ENV, "direct-composition")
+    mode = os.environ.get(QTWEBENGINE_RENDERING_ENV, DEFAULT_RENDERING_MODE)
     flags = _qtwebengine_flags_for_rendering_mode(mode)
     if flags is None:
         print(
