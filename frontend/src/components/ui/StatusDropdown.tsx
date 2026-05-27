@@ -34,8 +34,8 @@ export function StatusDropdown({
   const menuGap = 6;
   const buttonClasses =
     variant === "pill"
-      ? `flex h-7 w-full items-center justify-between gap-1 rounded-full px-3 text-[11px] font-semibold leading-none outline-none transition hover:brightness-95 focus-visible:shadow-focus ${tone.badge}`
-      : "tm-select flex h-[38px] w-full min-w-0 items-center justify-between gap-2";
+      ? `tm-desktop-paint-lite flex h-7 w-full items-center justify-between gap-1 rounded-full px-3 text-[11px] font-semibold leading-none outline-none transition hover:brightness-95 focus-visible:shadow-focus ${tone.badge}`
+      : "tm-desktop-paint-lite tm-select flex h-[38px] w-full min-w-0 items-center justify-between gap-2";
 
   useLayoutEffect(() => {
     if (!open) {
@@ -124,7 +124,7 @@ export function StatusDropdown({
                   <button
                     key={status}
                     type="button"
-                    className={`flex h-8 w-full items-center rounded-[6px] px-2 text-left text-[12px] font-semibold transition ${
+                    className={`tm-desktop-paint-lite flex h-8 w-full items-center rounded-[6px] px-2 text-left text-[12px] font-semibold transition ${
                       status === value ? itemTone.badge : "text-muted hover:bg-surface-soft"
                     }`}
                     role="option"

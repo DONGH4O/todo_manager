@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 import { MiniTaskPill } from "@/components/calendar/MiniTaskPill";
 import type { CalendarDay } from "@/types/todo";
 
@@ -6,11 +8,11 @@ interface CalendarDayCellProps {
   onSelect: (date: string) => void;
 }
 
-export function CalendarDayCell({ day, onSelect }: CalendarDayCellProps) {
+function CalendarDayCellComponent({ day, onSelect }: CalendarDayCellProps) {
   return (
     <button
       type="button"
-      className={`group flex h-full min-h-0 flex-col rounded-default border p-2 text-left transition ${
+      className={`tm-desktop-paint-lite group flex h-full min-h-0 flex-col rounded-default border p-2 text-left transition ${
         day.isSelected ? "border-primary shadow-focus" : "border-line hover:border-line-strong"
       } ${day.isToday ? "bg-[linear-gradient(135deg,var(--color-primary-soft),var(--color-secondary-soft))]" : "bg-surface-soft"} ${
         day.isOutsideMonth ? "opacity-55" : ""
@@ -35,3 +37,5 @@ export function CalendarDayCell({ day, onSelect }: CalendarDayCellProps) {
     </button>
   );
 }
+
+export const CalendarDayCell = memo(CalendarDayCellComponent);

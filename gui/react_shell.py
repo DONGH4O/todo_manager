@@ -4,9 +4,73 @@ from __future__ import annotations
 
 import json
 import locale
+import os
 import sys
 from pathlib import Path
 from typing import Any
+
+QTWEBENGINE_RENDERING_ENV = "TODO_MANAGER_QTWEBENGINE_RENDERING"
+QTWEBENGINE_CHROMIUM_FLAGS_ENV = "QTWEBENGINE_CHROMIUM_FLAGS"
+DEFAULT_RENDERING_MODE = "angle-gl"
+DIRECT_COMPOSITION_FLAGS = (
+    "--disable-direct-composition",
+    "--disable-direct-composition-video-overlays",
+)
+ANGLE_DEFAULT_FLAGS = ("--use-gl=angle", "--use-angle=default")
+ANGLE_D3D11_FLAGS = ("--use-gl=angle", "--use-angle=d3d11")
+ANGLE_D3D9_FLAGS = ("--use-gl=angle", "--use-angle=d3d9")
+ANGLE_OPENGL_FLAGS = ("--use-gl=angle", "--use-angle=gl")
+VULKAN_ANGLE_FLAGS = ("--use-gl=angle", "--enable-features=Vulkan", "--use-vulkan=native")
+VULKAN_STUB_FLAGS = ("--use-gl=stub", "--enable-features=Vulkan", "--use-vulkan=native")
+
+
+def _merge_chromium_flags(existing: str, flags: tuple[str, ...]) -> str:
+    tokens = existing.split()
+    seen = set(tokens)
+    for flag in flags:
+        if flag not in seen:
+            tokens.append(flag)
+            seen.add(flag)
+    return " ".join(tokens)
+
+
+def _qtwebengine_flags_for_rendering_mode(mode: str | None) -> tuple[str, ...] | None:
+    normalized = (mode or DEFAULT_RENDERING_MODE).strip().lower()
+    if normalized in {"", "default", "hardware", "gpu", "system"}:
+        return ()
+    if normalized in {"angle", "angle-default"}:
+        return ANGLE_DEFAULT_FLAGS
+    if normalized in {"angle-d3d11", "d3d11"}:
+        return ANGLE_D3D11_FLAGS
+    if normalized in {"angle-d3d9", "d3d9"}:
+        return ANGLE_D3D9_FLAGS
+    if normalized in {"angle-gl", "angle-opengl", "opengl", "gl"}:
+        return ANGLE_OPENGL_FLAGS
+    if normalized in {"vulkan", "vulkan-angle", "angle-vulkan"}:
+        return VULKAN_ANGLE_FLAGS
+    if normalized in {"vulkan-stub", "stub-vulkan", "no-angle-vulkan"}:
+        return VULKAN_STUB_FLAGS
+    if normalized in {"direct-composition", "dcomp", "disable-direct-composition"}:
+        return DIRECT_COMPOSITION_FLAGS
+    return None
+
+
+def _configure_qtwebengine_rendering() -> None:
+    mode = os.environ.get(QTWEBENGINE_RENDERING_ENV, DEFAULT_RENDERING_MODE)
+    flags = _qtwebengine_flags_for_rendering_mode(mode)
+    if flags is None:
+        print(
+            f"Unsupported {QTWEBENGINE_RENDERING_ENV}={mode!r}; using QtWebEngine defaults.",
+            file=sys.stderr,
+        )
+        return
+    if not flags:
+        return
+    existing = os.environ.get(QTWEBENGINE_CHROMIUM_FLAGS_ENV, "")
+    os.environ[QTWEBENGINE_CHROMIUM_FLAGS_ENV] = _merge_chromium_flags(existing, flags)
+
+
+_configure_qtwebengine_rendering()
 
 from todo_manager.engine.storage import DataFileError, DataWriteError, set_data_dir
 from todo_manager.engine.task_manager import (

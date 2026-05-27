@@ -16,25 +16,26 @@ interface CreateSubtaskModalProps {
 
 export function CreateSubtaskModal({ open, task, fallbackDate, onCancel, onCreate }: CreateSubtaskModalProps) {
   const titleRef = useRef<HTMLInputElement>(null);
-  const [title, setTitle] = useState("");
   const [startDate, setStartDate] = useState(fallbackDate);
   const [endDate, setEndDate] = useState(fallbackDate);
   const [status, setStatus] = useState<TaskStatus>("未启动");
 
   useEffect(() => {
     if (!open) return;
-    setTitle("");
     setStatus("未启动");
     setStartDate(task?.start_date || fallbackDate);
     setEndDate(task?.end_date || fallbackDate);
+    if (titleRef.current) titleRef.current.value = "";
     window.setTimeout(() => titleRef.current?.focus(), 0);
   }, [fallbackDate, open, task]);
 
   const handleCreate = () => {
     const [cleanStart, cleanEnd] = normalizeDateRange(startDate, endDate, fallbackDate);
+    const title = titleRef.current?.value.trim() || "";
+
     onCreate({
       id: `sub-${Date.now()}`,
-      title: title.trim() || "未命名子任务",
+      title: title || "未命名子任务",
       start_date: cleanStart,
       end_date: cleanEnd,
       status,
@@ -60,7 +61,7 @@ export function CreateSubtaskModal({ open, task, fallbackDate, onCancel, onCreat
       <div className="space-y-3">
         <label className="tm-field">
           <span>标题</span>
-          <input ref={titleRef} className="tm-input h-[38px]" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="输入子任务标题" />
+          <input ref={titleRef} className="tm-input h-[38px]" defaultValue="" placeholder="输入子任务标题" />
         </label>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="tm-field">

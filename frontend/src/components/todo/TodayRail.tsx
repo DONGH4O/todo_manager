@@ -1,3 +1,5 @@
+import { useMemo } from "react";
+
 import { formatMonthDay, getMonthKey } from "@/lib/date";
 import { MetricCard } from "@/components/todo/MetricCard";
 import { StatusFilterTabs } from "@/components/todo/StatusFilterTabs";
@@ -27,18 +29,48 @@ export function TodayRail({
   onFilterChange,
   onSelectTask
 }: TodayRailProps) {
-  const monthKey = getMonthKey(visibleYear, visibleMonth);
-  const monthTasks = tasks.filter((task) => task.start_date.startsWith(monthKey) || task.end_date.startsWith(monthKey));
-  const filteredTasks = selectedDayTasks.filter((task) => filter === "all" || task.status === filter);
+  const monthKey = useMemo(() => getMonthKey(visibleYear, visibleMonth), [visibleMonth, visibleYear]);
+  const monthTasks = useMemo(
+    () => tasks.filter((task) => task.start_date.startsWith(monthKey) || task.end_date.startsWith(monthKey)),
+    [monthKey, tasks]
+  );
+  const filteredTasks = useMemo(
+    () => selectedDayTasks.filter((task) => filter === "all" || task.status === filter),
+    [filter, selectedDayTasks]
+  );
 
-  const metrics = [
-    ["当月任务", monthTasks.length],
-    ["当日安排", selectedDayTasks.length],
-    ["未启动", selectedDayTasks.filter((task) => task.status === "未启动").length],
-    ["完成中", selectedDayTasks.filter((task) => task.status === "完成中").length],
-    ["已完成", selectedDayTasks.filter((task) => task.status === "已完成").length],
-    ["已取消", selectedDayTasks.filter((task) => task.status === "已取消").length]
-  ] as const;
+  const metrics = useMemo(() => {
+    let pending = 0;
+    let inProgress = 0;
+    let completed = 0;
+    let cancelled = 0;
+
+    for (const task of selectedDayTasks) {
+      switch (task.status) {
+        case "未启动":
+          pending += 1;
+          break;
+        case "完成中":
+          inProgress += 1;
+          break;
+        case "已完成":
+          completed += 1;
+          break;
+        case "已取消":
+          cancelled += 1;
+          break;
+      }
+    }
+
+    return [
+      ["当月任务", monthTasks.length],
+      ["当日安排", selectedDayTasks.length],
+      ["未启动", pending],
+      ["完成中", inProgress],
+      ["已完成", completed],
+      ["已取消", cancelled]
+    ] as const;
+  }, [monthTasks.length, selectedDayTasks]);
 
   return (
     <aside className="tm-panel h-full min-h-0" data-figma-node="Left rail / 今日节奏">

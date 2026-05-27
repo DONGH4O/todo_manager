@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 import { getStatusTone } from "@/lib/tokens";
 import type { TaskStatus } from "@/types/todo";
 
@@ -6,7 +8,7 @@ interface StatusBadgeProps {
   className?: string;
 }
 
-export function StatusBadge({ status, className = "" }: StatusBadgeProps) {
+function StatusBadgeComponent({ status, className = "" }: StatusBadgeProps) {
   const tone = getStatusTone(status);
 
   return (
@@ -17,3 +19,5 @@ export function StatusBadge({ status, className = "" }: StatusBadgeProps) {
     </span>
   );
 }
+
+export const StatusBadge = memo(StatusBadgeComponent);

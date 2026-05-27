@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 import { formatDateRange } from "@/lib/date";
 import { getStatusTone } from "@/lib/tokens";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -9,14 +11,14 @@ interface TaskCardProps {
   onSelect: (task: Task) => void;
 }
 
-export function TaskCard({ task, selected, onSelect }: TaskCardProps) {
+function TaskCardComponent({ task, selected, onSelect }: TaskCardProps) {
   const completedSubtasks = task.subtasks.filter((subtask) => subtask.status === "已完成").length;
   const tone = getStatusTone(task.status);
 
   return (
     <button
       type="button"
-      className={`min-h-[144px] w-full rounded-default border bg-surface-soft p-3 text-left transition hover:border-line-strong hover:bg-surface ${
+      className={`tm-desktop-paint-lite min-h-[144px] w-full rounded-default border bg-surface-soft p-3 text-left transition hover:border-line-strong hover:bg-surface ${
         selected ? "border-primary shadow-focus" : "border-line"
       }`}
       title={`查看 ${task.title}`}
@@ -43,3 +45,5 @@ export function TaskCard({ task, selected, onSelect }: TaskCardProps) {
     </button>
   );
 }
+
+export const TaskCard = memo(TaskCardComponent);

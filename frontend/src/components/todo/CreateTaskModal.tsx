@@ -15,31 +15,33 @@ interface CreateTaskModalProps {
 
 export function CreateTaskModal({ open, selectedDate, onCancel, onCreate }: CreateTaskModalProps) {
   const titleRef = useRef<HTMLInputElement>(null);
-  const [title, setTitle] = useState("");
+  const noteRef = useRef<HTMLTextAreaElement>(null);
   const [startDate, setStartDate] = useState(selectedDate);
   const [endDate, setEndDate] = useState(selectedDate);
   const [status, setStatus] = useState<TaskStatus>("未启动");
-  const [note, setNote] = useState("");
 
   useEffect(() => {
     if (!open) return;
-    setTitle("");
-    setNote("");
     setStatus("未启动");
     setStartDate(selectedDate);
     setEndDate(selectedDate);
+    if (titleRef.current) titleRef.current.value = "";
+    if (noteRef.current) noteRef.current.value = "";
     window.setTimeout(() => titleRef.current?.focus(), 0);
   }, [open, selectedDate]);
 
   const handleCreate = () => {
     const [cleanStart, cleanEnd] = normalizeDateRange(startDate, endDate, selectedDate);
+    const title = titleRef.current?.value.trim() || "";
+    const note = noteRef.current?.value.trim() || "";
+
     onCreate({
       id: `new-${Date.now()}`,
-      title: title.trim() || "未命名任务",
+      title: title || "未命名任务",
       start_date: cleanStart,
       end_date: cleanEnd,
       status,
-      background: note.trim() || "新任务说明待补充。",
+      background: note || "新任务说明待补充。",
       subtasks: []
     });
   };
@@ -62,7 +64,7 @@ export function CreateTaskModal({ open, selectedDate, onCancel, onCreate }: Crea
       <div className="space-y-3">
         <label className="tm-field">
           <span>标题</span>
-          <input ref={titleRef} className="tm-input h-[38px]" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="输入任务标题" />
+          <input ref={titleRef} className="tm-input h-[38px]" defaultValue="" placeholder="输入任务标题" />
         </label>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="tm-field">
@@ -80,7 +82,7 @@ export function CreateTaskModal({ open, selectedDate, onCancel, onCreate }: Crea
         </label>
         <label className="tm-field">
           <span>备注</span>
-          <textarea className="tm-input min-h-[74px] resize-none py-3" value={note} onChange={(event) => setNote(event.target.value)} placeholder="可选说明" />
+          <textarea ref={noteRef} className="tm-input min-h-[74px] resize-none py-3" defaultValue="" placeholder="可选说明" />
         </label>
       </div>
     </ModalShell>
