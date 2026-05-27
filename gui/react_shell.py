@@ -11,7 +11,7 @@ from typing import Any
 
 QTWEBENGINE_RENDERING_ENV = "TODO_MANAGER_QTWEBENGINE_RENDERING"
 QTWEBENGINE_CHROMIUM_FLAGS_ENV = "QTWEBENGINE_CHROMIUM_FLAGS"
-DEFAULT_RENDERING_MODE = "vulkan-angle"
+DEFAULT_RENDERING_MODE = "angle-gl"
 DIRECT_COMPOSITION_FLAGS = (
     "--disable-direct-composition",
     "--disable-direct-composition-video-overlays",

@@ -61,3 +61,12 @@ TODO_MANAGER_QTWEBENGINE_RENDERING=vulkan-stub
 ## 4. 参考依据
 
 Qt 官方文档说明 QtWebEngine 可通过 `QTWEBENGINE_CHROMIUM_FLAGS` 传入 `--use-gl=` 和 `--use-angle=` 等 Chromium flags；当 ANGLE 在特定配置下崩溃时，可尝试 Vulkan 后端配置，包括 `--use-gl=angle --enable-features=Vulkan --use-vulkan=native` 或更激进的 `--use-gl=stub --enable-features=Vulkan --use-vulkan=native`。
+
+## 5. 人工复测结果
+
+用户复测 `perf-gui-qtwebengine-vulkan-angle` 后反馈：
+
+- 再次出现空白窗口；
+- PowerShell 持续输出 `Context lost`。
+
+结论：`vulkan-angle` 在当前环境不可用，不应继续作为候选修复方向。`vulkan-stub` 更激进且风险更高，暂不继续测试。下一轮改测 `angle-gl`，作为最后一个保留硬件加速但改变 ANGLE 显示后端的对照项。
