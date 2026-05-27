@@ -23,7 +23,15 @@ def test_qtwebengine_direct_composition_flags_are_merged_without_duplicates():
 def test_qtwebengine_rendering_mode_maps_to_direct_composition_flags():
     assert (
         react_shell._qtwebengine_flags_for_rendering_mode(None)
-        == react_shell.ANGLE_D3D9_FLAGS
+        == react_shell.VULKAN_ANGLE_FLAGS
+    )
+    assert (
+        react_shell._qtwebengine_flags_for_rendering_mode("vulkan-angle")
+        == react_shell.VULKAN_ANGLE_FLAGS
+    )
+    assert (
+        react_shell._qtwebengine_flags_for_rendering_mode("vulkan-stub")
+        == react_shell.VULKAN_STUB_FLAGS
     )
     assert (
         react_shell._qtwebengine_flags_for_rendering_mode("angle-d3d9")
@@ -47,10 +55,10 @@ def test_qtwebengine_rendering_mode_maps_to_direct_composition_flags():
 
 def test_qtwebengine_rendering_configuration_updates_chromium_flags(monkeypatch):
     monkeypatch.delenv(react_shell.QTWEBENGINE_CHROMIUM_FLAGS_ENV, raising=False)
-    monkeypatch.setenv(react_shell.QTWEBENGINE_RENDERING_ENV, "angle-d3d9")
+    monkeypatch.setenv(react_shell.QTWEBENGINE_RENDERING_ENV, "vulkan-angle")
 
     react_shell._configure_qtwebengine_rendering()
 
     assert os.environ[react_shell.QTWEBENGINE_CHROMIUM_FLAGS_ENV].split() == list(
-        react_shell.ANGLE_D3D9_FLAGS
+        react_shell.VULKAN_ANGLE_FLAGS
     )

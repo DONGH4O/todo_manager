@@ -50,3 +50,17 @@ TODO_MANAGER_QTWEBENGINE_RENDERING=angle-gl
 ## 4. 参考依据
 
 Qt 官方文档说明 QtWebEngine 的最终图像由 Chromium compositor 生成，并可通过 `QTWEBENGINE_CHROMIUM_FLAGS` 传入 `--use-gl=` / `--use-angle=` 来覆盖 Chromium 图形后端。该实验据此只改变 Chromium ANGLE 后端，不触碰 React UI 结构。
+
+## 5. 人工复测结果
+
+用户复测 `perf-gui-qtwebengine-angle-d3d9` 后反馈：
+
+- 启动后弹出空白窗口；
+- PowerShell 持续输出 GPU / compositor 错误；
+- 关键错误包括：
+  - `CreateSharedImage failed.`
+  - `Context lost during MakeCurrent.`
+  - `eglCreateContext: Requested version is not supported`
+  - `Failed to make current since context is marked as lost`
+
+结论：`angle-d3d9` 在当前 QtWebEngine / Chromium / Windows 图形栈上不可用，不能作为候选修复方向。下一轮应撤离 D3D9 默认路径，优先测试 Qt 官方文档中建议的 Vulkan 后端配置。

@@ -11,7 +11,7 @@ from typing import Any
 
 QTWEBENGINE_RENDERING_ENV = "TODO_MANAGER_QTWEBENGINE_RENDERING"
 QTWEBENGINE_CHROMIUM_FLAGS_ENV = "QTWEBENGINE_CHROMIUM_FLAGS"
-DEFAULT_RENDERING_MODE = "angle-d3d9"
+DEFAULT_RENDERING_MODE = "vulkan-angle"
 DIRECT_COMPOSITION_FLAGS = (
     "--disable-direct-composition",
     "--disable-direct-composition-video-overlays",
@@ -20,6 +20,8 @@ ANGLE_DEFAULT_FLAGS = ("--use-gl=angle", "--use-angle=default")
 ANGLE_D3D11_FLAGS = ("--use-gl=angle", "--use-angle=d3d11")
 ANGLE_D3D9_FLAGS = ("--use-gl=angle", "--use-angle=d3d9")
 ANGLE_OPENGL_FLAGS = ("--use-gl=angle", "--use-angle=gl")
+VULKAN_ANGLE_FLAGS = ("--use-gl=angle", "--enable-features=Vulkan", "--use-vulkan=native")
+VULKAN_STUB_FLAGS = ("--use-gl=stub", "--enable-features=Vulkan", "--use-vulkan=native")
 
 
 def _merge_chromium_flags(existing: str, flags: tuple[str, ...]) -> str:
@@ -44,6 +46,10 @@ def _qtwebengine_flags_for_rendering_mode(mode: str | None) -> tuple[str, ...] |
         return ANGLE_D3D9_FLAGS
     if normalized in {"angle-gl", "angle-opengl", "opengl", "gl"}:
         return ANGLE_OPENGL_FLAGS
+    if normalized in {"vulkan", "vulkan-angle", "angle-vulkan"}:
+        return VULKAN_ANGLE_FLAGS
+    if normalized in {"vulkan-stub", "stub-vulkan", "no-angle-vulkan"}:
+        return VULKAN_STUB_FLAGS
     if normalized in {"direct-composition", "dcomp", "disable-direct-composition"}:
         return DIRECT_COMPOSITION_FLAGS
     return None
