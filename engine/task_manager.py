@@ -6,16 +6,25 @@ from typing import List, Optional
 from uuid import uuid4
 
 from .calendar_utils import is_date_in_range, _parse_date
-from .models import Task, SubTask, VersionRecord, VALID_STATUSES, MAX_TITLE_LENGTH, MAX_BACKGROUND_LENGTH
-from .storage import load_tasks, save_tasks
+from .models import Task, SubTask, StatusEvent, VersionRecord, VALID_STATUSES, MAX_TITLE_LENGTH, MAX_BACKGROUND_LENGTH
+from .storage import load_tasks, save_tasks, task_write_transaction
 
 
 ONGOING_DISPLAY_STATUSES = ("未启动", "完成中")
 
 
 def _now_iso() -> str:
-    """获取当前 UTC+8 时间的 ISO 8601 字符串（微秒精度）"""
+    """获取当前本地 时间的 ISO 8601 字符串（微秒精度）"""
     return datetime.now().astimezone().isoformat(timespec="microseconds")
+
+
+def _record_status(item: Task | SubTask, previous: str | None, parent_id: str | None) -> None:
+    item.status_events.append(StatusEvent(
+        event_id=str(uuid4()), occurred_at=item.updated_at,
+        level="subtask" if parent_id else "parent", task_id=item.id, parent_id=parent_id,
+        title=item.title, event_type="created" if previous is None else "changed",
+        from_status=previous, to_status=item.status,
+    ))
 
 
 def _make_history_record(task: Task) -> VersionRecord:
@@ -159,6 +168,7 @@ def _resolve_subtask_in_parent(task_id: str, subtask_id: str):
 
 # ── 任务 CRUD（不变）──────────────────────────────────────
 
+@task_write_transaction()
 def create_task(
     title: str,
     start_date: str,
@@ -191,6 +201,7 @@ def create_task(
 
     # 写入初始版本快照
     task.history.append(_make_history_record(task))
+    _record_status(task, None, None)
 
     # 持久化
     tasks = load_tasks()
@@ -211,7 +222,8 @@ def get_task(task_id: str) -> Optional[Task]:
     return _resolve_task_id(task_id)
 
 
-def update_task(task_id: str, **kwargs) -> Task:
+@task_write_transaction()
+def update_task(task_id: str, *, subtask_statuses: dict[str, str] | None = None, **kwargs) -> Task:
     """更新任务字段。
 
     支持部分字段更新，只更新传入的字段。
@@ -256,14 +268,32 @@ def update_task(task_id: str, **kwargs) -> Task:
     target.title = merged_title.strip()
     target.start_date = merged_start
     target.end_date = merged_end
+    previous_status = target.status
     target.status = merged_status
     target.background = merged_background
     target.updated_at = _now_iso()
+    if previous_status != merged_status:
+        _record_status(target, previous_status, None)
+
+    if subtask_statuses:
+        by_id = {child.id: child for child in target.subtasks if not child.deleted}
+        for child_id, status in subtask_statuses.items():
+            child = by_id.get(child_id)
+            if child is None:
+                raise ValueError(f"子任务不存在: {child_id}")
+            _validate_status(status)
+            if child.status != status:
+                child.history.append(_make_subtask_history_record(child))
+                previous = child.status
+                child.status = status
+                child.updated_at = target.updated_at
+                _record_status(child, previous, target.id)
 
     save_tasks(tasks)
     return target
 
 
+@task_write_transaction()
 def delete_task(task_id: str) -> bool:
     """软删除任务（deleted = True），不删除数据和历史。
 
@@ -343,6 +373,7 @@ def list_all_tasks(include_deleted: bool = False) -> List[Task]:
 
 # ── 子任务 CRUD ────────────────────────────────────────────
 
+@task_write_transaction()
 def create_subtask(
     task_id: str,
     title: str,
@@ -382,6 +413,7 @@ def create_subtask(
 
     # 写入初始版本快照
     subtask.history.append(_make_subtask_history_record(subtask))
+    _record_status(subtask, None, parent.id)
 
     # 挂到父任务下并持久化
     parent.subtasks.append(subtask)
@@ -405,6 +437,7 @@ def get_subtask(task_id: str, subtask_id: str) -> Optional[SubTask]:
         return None
 
 
+@task_write_transaction()
 def update_subtask(task_id: str, subtask_id: str, **kwargs) -> SubTask:
     """更新子任务字段。
 
@@ -449,14 +482,18 @@ def update_subtask(task_id: str, subtask_id: str, **kwargs) -> SubTask:
     subtask.title = merged_title.strip()
     subtask.start_date = merged_start
     subtask.end_date = merged_end
+    previous_status = subtask.status
     subtask.status = merged_status
     subtask.background = merged_background
     subtask.updated_at = _now_iso()
+    if previous_status != merged_status:
+        _record_status(subtask, previous_status, parent.id)
 
     save_tasks(tasks)
     return subtask
 
 
+@task_write_transaction()
 def delete_subtask(task_id: str, subtask_id: str) -> bool:
     """软删除子任务（deleted = True），不删除数据和历史。
 
@@ -480,6 +517,7 @@ def delete_subtask(task_id: str, subtask_id: str) -> bool:
 
 # ── 撤销删除 ──────────────────────────────────────────────
 
+@task_write_transaction()
 def undo_task(task_id: str) -> bool:
     """撤销任务删除，将 deleted 恢复为 False。
 
@@ -500,6 +538,7 @@ def undo_task(task_id: str) -> bool:
     return True
 
 
+@task_write_transaction()
 def undo_subtask(task_id: str, subtask_id: str) -> bool:
     """撤销子任务删除，将 deleted 恢复为 False。
 
@@ -638,3 +677,39 @@ def get_all_tasks_flat() -> List[dict]:
 
     flat.sort(key=lambda x: x["created_at"])
     return flat
+
+def status_history(start: str, end: str, level: str = "all",
+                   to_status: str | None = None) -> list[StatusEvent]:
+    _validate_date(start, "查询开始日")
+    _validate_date(end, "查询结束日")
+    if start > end:
+        raise ValueError("查询开始日不能晚于结束日")
+    if level not in ("all", "parent", "subtask"):
+        raise ValueError("任务层级无效")
+    if to_status is not None:
+        _validate_status(to_status)
+    matches = []
+    for task in load_tasks():
+        for item in (task, *task.subtasks):
+            for event in item.status_events:
+                if level != "all" and event.level != level:
+                    continue
+                if to_status is not None and event.to_status != to_status:
+                    continue
+                instant = datetime.fromisoformat(event.occurred_at)
+                if start <= instant.astimezone().date().isoformat() <= end:
+                    matches.append((instant, event))
+    matches.sort(key=lambda pair: pair[0], reverse=True)
+    return [event for _, event in matches]
+
+
+def completed_tasks(start: str, end: str, level: str = "all") -> list[dict]:
+    summaries = {}
+    for event in status_history(start, end, level, "已完成"):
+        key = (event.level, event.parent_id, event.task_id)
+        if key not in summaries:
+            summaries[key] = dict(level=event.level, parent_id=event.parent_id,
+                                  task_id=event.task_id, title=event.title,
+                                  last_completed_at=event.occurred_at, completion_count=0)
+        summaries[key]["completion_count"] += 1
+    return list(summaries.values())

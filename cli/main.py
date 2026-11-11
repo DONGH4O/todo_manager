@@ -24,7 +24,7 @@ from todo_manager.cli.commands import (
     cmd_add, cmd_list, cmd_show, cmd_edit, cmd_delete, cmd_undo,
     cmd_sub_add, cmd_sub_list, cmd_sub_show, cmd_sub_edit,
     cmd_sub_delete, cmd_sub_undo,
-    cmd_cal, cmd_search, cmd_stats,
+    cmd_cal, cmd_search, cmd_stats, cmd_activity,
 )
 
 
@@ -196,6 +196,15 @@ def _build_parser() -> argparse.ArgumentParser:
     # ── todo stats ──────────────────────────────────────
     p_stats = sub.add_parser("stats", help="统计概览")
     p_stats.set_defaults(func=cmd_stats)
+
+    for name, help_text in [("completed", "期间完成的任务"), ("status-history", "期间状态事件")]:
+        activity = sub.add_parser(name, help=help_text)
+        activity.add_argument("--from", dest="start", required=True, metavar="YYYY-MM-DD")
+        activity.add_argument("--to", dest="end", required=True, metavar="YYYY-MM-DD")
+        activity.add_argument("--level", choices=("all", "parent", "subtask"), default="all")
+        if name == "status-history":
+            activity.add_argument("--to-status", help="仅查询进入指定状态的事件")
+        activity.set_defaults(func=cmd_activity)
 
     return parser
 

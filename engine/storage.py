@@ -3,6 +3,7 @@
 import json
 import os
 import shutil
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import List
@@ -92,6 +93,30 @@ def get_data_dir() -> str:
 def _get_data_path() -> Path:
     """获取 tasks.json 的完整路径"""
     return Path(get_data_dir()) / "tasks.json"
+
+
+@contextmanager
+def task_write_transaction():
+    """Serialize the entire read/modify/replace cycle across GUI and CLI writers."""
+    path = _get_data_path().with_suffix(".lock")
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        lock = path.open("a+b")
+    except OSError as exc:
+        raise DataWriteError(f"无法打开任务写入锁: {path}") from exc
+    with lock:
+        try:
+            if os.name == "nt":
+                import msvcrt
+                lock.seek(0)
+                msvcrt.locking(lock.fileno(), msvcrt.LK_LOCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        except OSError as exc:
+            raise DataWriteError(f"无法取得任务写入锁: {path}") from exc
+        # Closing this handle also releases the OS lock on exceptions/process exit.
+        yield
 
 
 def load_tasks() -> List[Task]:

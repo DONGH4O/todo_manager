@@ -24,6 +24,19 @@ class VersionRecord:
     changed_at: str  # ISO 8601 时间戳
 
 
+@dataclass(frozen=True)
+class StatusEvent:
+    event_id: str
+    occurred_at: str
+    level: str
+    task_id: str
+    parent_id: Optional[str]
+    title: str
+    event_type: str
+    from_status: Optional[str]
+    to_status: str
+
+
 @dataclass
 class SubTask:
     """二级子任务 —— 嵌套在主任务内，字段与主任务一致"""
@@ -37,6 +50,7 @@ class SubTask:
     created_at: str = ""
     updated_at: str = ""
     history: List[VersionRecord] = field(default_factory=list)
+    status_events: List[StatusEvent] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         """序列化为普通 dict（用于 JSON 存储）"""
@@ -47,6 +61,7 @@ class SubTask:
     def from_dict(cls, d: dict) -> "SubTask":
         """从 dict 反序列化"""
         data = dict(d)
+        data["status_events"] = [StatusEvent(**event) for event in data.get("status_events", [])]
         history_data = data.pop("history", [])
         history = [VersionRecord(**h) for h in history_data]
         return cls(**data, history=history)
@@ -66,6 +81,7 @@ class Task:
     updated_at: str = ""
     history: List[VersionRecord] = field(default_factory=list)
     subtasks: List[SubTask] = field(default_factory=list)
+    status_events: List[StatusEvent] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         """序列化为普通 dict（用于 JSON 存储）"""
@@ -79,6 +95,7 @@ class Task:
         向后兼容 v1 数据：缺少 subtasks 字段时自动设为空列表。
         """
         data = dict(d)
+        data["status_events"] = [StatusEvent(**event) for event in data.get("status_events", [])]
         history_data = data.pop("history", [])
         history = [VersionRecord(**h) for h in history_data]
         subtasks_data = data.pop("subtasks", [])

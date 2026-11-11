@@ -117,8 +117,45 @@ select {
   backdrop-filter: none !important;
 }
 
+/* Opaque surfaces and a plain background avoid large, transparent compositor
+   layers on high-DPI desktop displays while retaining the existing theme colors. */
+:root[data-desktop-shell="true"],
+:root[data-desktop-shell="true"][data-theme="light"] {
+  --color-surface: #f5fafc;
+  --color-surface-soft: #eef5f9;
+}
+
+:root[data-desktop-shell="true"][data-theme="dark"] {
+  --color-surface: #102636;
+  --color-surface-soft: #132d3d;
+}
+
+:root[data-desktop-shell="true"] .app-bg {
+  background: var(--color-bg-c);
+}
+
 :root[data-desktop-shell="true"] * {
-  transition-property: color, background-color, border-color, box-shadow, opacity !important;
+  transition: none !important;
+  animation: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+:root[data-desktop-shell="true"] .tm-panel,
+:root[data-desktop-shell="true"] .shadow-floating,
+:root[data-desktop-shell="true"] .shadow-dropdown {
+  box-shadow: none;
+}
+
+.tm-modal-overlay {
+  /* A plain scrim must never capture and blur the entire desktop frame. */
+  background: rgba(7, 19, 29, 0.48);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.tm-modal-panel {
+  background: var(--color-surface-strong);
 }
 
 @layer components {

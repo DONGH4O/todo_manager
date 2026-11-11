@@ -58,11 +58,18 @@ def _should_prune_toc_entry(entry):
         return True
     return any(marker in text for marker in _PRUNED_QT_MARKERS)
 
+_gui_datas = [(str(_icon_dir), "assets/icons")]
+if sys.platform == "darwin":
+    _react_ui = _project_root / "frontend" / "out"
+    if not (_react_ui / "index.html").exists():
+        raise SystemExit("Build the React static export before packaging the macOS app.")
+    _gui_datas.append((str(_react_ui), "desktop-react/ui"))
+
 a = Analysis(
     [str(_project_root / "gui" / "main.py")],
     pathex=[str(_package_root)],
     binaries=[],
-    datas=[(str(_icon_dir), "assets/icons")],
+    datas=_gui_datas,
     hiddenimports=[
         "todo_manager.engine",
         "todo_manager.engine.models",

@@ -5,6 +5,7 @@
 """
 
 import sys
+from dataclasses import asdict
 from collections import OrderedDict
 from datetime import date, datetime, timedelta
 
@@ -12,7 +13,7 @@ from todo_manager.engine.task_manager import (
     create_task, get_task, update_task, delete_task, undo_task,
     create_subtask, get_subtask, update_subtask, delete_subtask, undo_subtask,
     get_tasks_for_date, list_all_tasks,
-    search_tasks,
+    search_tasks, status_history, completed_tasks,
 )
 from todo_manager.engine.models import VALID_STATUSES
 from todo_manager.cli.display import (
@@ -575,3 +576,30 @@ def cmd_stats(args):
     ):
         return
     print(format_stats(total, by_status, subtask_total, upcoming))
+
+def cmd_activity(args):
+    summary = args.command == "completed"
+    try:
+        if summary:
+            rows = completed_tasks(args.start, args.end, args.level)
+        else:
+            events = status_history(args.start, args.end, args.level, args.to_status)
+            rows = [asdict(event) for event in events]
+    except ValueError as exc:
+        fail(str(exc))
+    if emit_success(args, args.command, {"tasks" if summary else "events": rows}):
+        return
+    if not rows:
+        print("所选期间没有符合条件的记录")
+        return
+    extra = "完成次数\t最近完成时间" if summary else "发生时间\t事件\t原状态\t新状态"
+    print(f"层级\t任务 ID\t父任务 ID\t标题\t{extra}")
+    for row in rows:
+        level = "父任务" if row["level"] == "parent" else "子任务"
+        fields = [level, row["task_id"], row["parent_id"] or "—", row["title"]]
+        if summary:
+            fields.extend([str(row["completion_count"]), row["last_completed_at"]])
+        else:
+            kind = "创建" if row["event_type"] == "created" else "变更"
+            fields.extend([row["occurred_at"], kind, row["from_status"] or "—", row["to_status"]])
+        print("\t".join(fields))

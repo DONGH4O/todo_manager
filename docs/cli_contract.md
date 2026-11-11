@@ -205,3 +205,11 @@ todo --json --data-dir C:\tmp\todo-agent sub list <task-id>
 2. 若退出码非 0，解析 stderr 中的 JSON。
 3. 按 `error.code` 分支处理。
 4. `data_file_error` 时不要继续写入同一数据目录，先提示用户处理备份和原文件。
+
+## 状态回溯
+
+`todo completed --from 2026-11-01 --to 2026-11-30` 列出期间完成过的父任务和子任务，按最近完成时间倒序。重复完成累计次数，后来重开或删除仍可查到。JSON 的 `result.tasks` 包含 `level, task_id, parent_id, title, completion_count, last_completed_at`；标题取自期间最后一次完成。
+
+`todo status-history --from 2026-11-01 --to 2026-11-30 --to-status 已完成` 按发生时间倒序列出事件。省略 `--to-status` 可看全部状态。JSON 的 `result.events` 包含 `event_id, occurred_at, level, task_id, parent_id, title, event_type, from_status, to_status`。创建事件为 `created`，原状态为 null，变更事件为 `changed`。以已完成状态创建也计一次完成。
+
+两个命令均支持 `--level all|parent|subtask`（默认 all）、`--data-dir` 和 `--json`。日期均必填，格式 YYYY-MM-DD，按查询设备本地日期包含首尾两天。无结果返回空数组。只记录新版写入的事件，旧快照不回填。桌面端与 CLI 共享数据目录时应一起升级，以便两端都记录事件并使用同一写入锁。

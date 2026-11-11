@@ -16,6 +16,7 @@ once on macOS to produce the two supported release bundles.
 from __future__ import annotations
 
 import argparse
+import platform
 import shutil
 import subprocess
 import sys
@@ -322,6 +323,13 @@ def create_zip(profile: PlatformProfile) -> Path:
     if not DIST.exists():
         raise SystemExit(f"Release directory does not exist: {DIST}")
 
+    if profile.key == "macos" and platform.machine() == "arm64" and (DIST / profile.cli_artifact).is_file():
+        skill_dir = DIST / "skills" / "todo"
+        shutil.copytree(ROOT / "skills" / "todo", skill_dir, dirs_exist_ok=True)
+        shutil.copy2(DIST / profile.cli_artifact, skill_dir / "scripts" / "todo")
+        for name in ("升级说明.md", "全局安装说明.md"):
+            shutil.copy2(ROOT / "docs" / "release" / name, DIST / name)
+
     print("\n[ZIP] Packaging release directory...")
     zip_name = f"{APP_DIR_NAME}-{profile.key}-{date.today().isoformat()}.zip"
     zip_path = DIST_ROOT / zip_name
@@ -393,11 +401,13 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.target in {"all", "cli"}:
             build_cli(profile)
+        if args.target == "all":
+            build_react_desktop(profile)
         if args.target in {"all", "gui"}:
             build_gui(profile)
         if args.target in {"all", "cli", "gui", "react"}:
             create_release_metadata(profile)
-        if args.target in {"all", "react"}:
+        if args.target == "react":
             build_react_desktop(profile)
         if args.target in {"all", "zip"}:
             zip_path = create_zip(profile)

@@ -158,7 +158,13 @@ class TodoBridge(QObject):
 
             if action == "updateTask":
                 update = payload.get("update")
-                task = update_task(str(payload.get("taskId") or ""), **_collect_update(update if isinstance(update, dict) else {}))
+                statuses = payload.get("subtaskStatuses", {})
+                if not isinstance(statuses, dict):
+                    raise ValueError("子任务状态更新格式无效")
+                task = update_task(
+                    str(payload.get("taskId") or ""), subtask_statuses=statuses,
+                    **_collect_update(update if isinstance(update, dict) else {}),
+                )
                 return _response(True, _object_payload(task))
 
             if action == "deleteTask":
@@ -218,6 +224,11 @@ def _resolve_index_html(react_root: str | None = None) -> Path:
             candidate = candidate / "index.html"
         return candidate
 
+    if getattr(sys, "frozen", False):
+        bundled_index = Path(sys._MEIPASS) / "desktop-react" / "ui" / "index.html"
+        if bundled_index.exists():
+            return bundled_index
+
     app_dir = Path(sys.executable).resolve().parent
     release_index = app_dir / "desktop-react" / "ui" / "index.html"
     if release_index.exists():
@@ -235,9 +246,13 @@ def _install_desktop_shell_script(view: QWebEngineView) -> None:
         """
 (function () {
   window.todoDesktopShell = true;
-  if (document.documentElement) {
-    document.documentElement.dataset.desktopShell = "true";
+  function markDesktopShell() {
+    if (document.documentElement) {
+      document.documentElement.dataset.desktopShell = "true";
+    }
   }
+  markDesktopShell();
+  document.addEventListener("DOMContentLoaded", markDesktopShell, { once: true });
 })();
 """
     )
@@ -254,6 +269,7 @@ def _install_bridge_script(view: QWebEngineView) -> None:
         """
 (function () {
   window.todoDesktopShell = true;
+  document.documentElement.dataset.desktopShell = "true";
 
   function installBridge() {
     if (window.todoBridge) return;

@@ -220,12 +220,15 @@ const previewStore = {
     return { ...task, subtasks: [] };
   },
 
-  async updateTask(taskId: string, update: TaskUpdate): Promise<Task> {
+  async updateTask(taskId: string, update: TaskUpdate, subtaskStatuses: Record<string, TaskStatus> = {}): Promise<Task> {
     const tasks = readPreviewTasks();
     const current = tasks.find((task) => task.id === taskId);
     if (!current) throw new TodoDataError({ code: "not_found", message: "任务不存在" });
 
-    const updated = { ...current, ...update, subtasks: current.subtasks.map((subtask) => ({ ...subtask })) };
+    const updated = {
+      ...current, ...update,
+      subtasks: current.subtasks.map((child) => ({ ...child, status: subtaskStatuses[child.id] ?? child.status }))
+    };
     writePreviewTasks(tasks.map((task) => (task.id === taskId ? updated : task)));
     return updated;
   },
@@ -308,11 +311,11 @@ export const todoData = {
     return normalizeTask(task);
   },
 
-  async updateTask(taskId: string, update: TaskUpdate): Promise<Task> {
-    if (await shouldUsePreviewStore()) return previewStore.updateTask(taskId, update);
+  async updateTask(taskId: string, update: TaskUpdate, subtaskStatuses: Record<string, TaskStatus> = {}): Promise<Task> {
+    if (await shouldUsePreviewStore()) return previewStore.updateTask(taskId, update, subtaskStatuses);
     const task = await bridgeRequest<Task>({
       action: "updateTask",
-      payload: { taskId, update }
+      payload: { taskId, update, subtaskStatuses }
     });
     return normalizeTask(task);
   },
