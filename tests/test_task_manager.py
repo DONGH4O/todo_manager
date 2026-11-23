@@ -5,6 +5,7 @@ import copy
 import tempfile
 from datetime import date, timedelta
 import pytest
+from todo_manager.engine import task_manager
 from todo_manager.engine.models import Task, SubTask, VersionRecord, VALID_STATUSES
 from todo_manager.engine.storage import set_data_dir
 from todo_manager.engine.task_manager import (
@@ -195,14 +196,16 @@ class TestDeleteTask:
 
 class TestGetTasksForDate:
     def test_in_range_shows(self):
-        create_task("区间内", "2026-04-01", "2026-04-15", "已完成", "bg")
+        create_task("区间内", "2026-04-01", "2026-04-15", "已取消", "bg")
         tasks = get_tasks_for_date("2026-04-10")
         assert len(tasks) == 1
 
-    def test_out_of_range_completed_hidden(self):
-        create_task("已完成过期", "2026-03-01", "2026-03-15", "已完成", "bg")
-        tasks = get_tasks_for_date("2026-04-01")
-        assert len(tasks) == 0
+    def test_completed_early_hidden_after_completion_day(self, monkeypatch):
+        monkeypatch.setattr(task_manager, "_now_iso", lambda: "2026-03-05T12:00:00")
+        task = create_task("提前完成", "2026-03-01", "2026-03-15", "已完成", "bg")
+        assert [item.id for item in get_tasks_for_date("2026-03-05")] == [task.id]
+        assert get_tasks_for_date("2026-03-06") == []
+        assert get_tasks_for_date("2026-03-15") == []
 
     def test_out_of_range_cancelled_hidden(self):
         create_task("已取消过期", "2026-03-01", "2026-03-15", "已取消", "bg")
@@ -227,11 +230,11 @@ class TestGetTasksForDate:
         tasks = get_tasks_for_date("2026-04-15")
         assert len(tasks) == 0
 
-    def test_completed_in_range_still_shows(self):
-        """已完成但仍在日期区间内的任务，仍然展示"""
-        create_task("已完成区间内", "2026-04-01", "2026-04-30", "已完成", "bg")
-        tasks = get_tasks_for_date("2026-04-15")
-        assert len(tasks) == 1
+    def test_completed_on_start_date_shows_that_day(self, monkeypatch):
+        monkeypatch.setattr(task_manager, "_now_iso", lambda: "2026-04-01T12:00:00")
+        task = create_task("当天完成", "2026-04-01", "2026-04-30", "已完成", "bg")
+        assert [item.id for item in get_tasks_for_date("2026-04-01")] == [task.id]
+        assert get_tasks_for_date("2026-04-02") == []
 
     def test_multiple_tasks_same_day(self):
         create_task("A", "2026-04-01", "2026-04-30", "未启动", "bg")
@@ -531,7 +534,7 @@ class TestCalendarWithSubtasks:
             "未来区间内",
             (today + timedelta(days=5)).isoformat(),
             (today + timedelta(days=15)).isoformat(),
-            "已完成",
+            "完成中",
             "bg",
         )
 
@@ -539,12 +542,10 @@ class TestCalendarWithSubtasks:
 
         assert [item.id for item in tasks] == [task.id]
 
-    def test_completed_or_cancelled_tasks_do_not_continue_after_deadline(self):
-        """已完成/已取消任务超过截止日后不再按持续任务展示。"""
+    def test_cancelled_tasks_do_not_continue_after_deadline(self):
         today = date.today()
         start = (today - timedelta(days=20)).isoformat()
         end = (today - timedelta(days=10)).isoformat()
-        create_task("已完成过期", start, end, "已完成", "bg")
         create_task("已取消过期", start, end, "已取消", "bg")
 
         tasks = get_tasks_for_date(today.isoformat())
@@ -578,7 +579,7 @@ class TestCalendarWithSubtasks:
 
     def test_parent_not_shown_subtasks_not_shown(self):
         """父任务不展示时，子任务也不出现"""
-        task = create_task("已完成过期", "2026-03-01", "2026-03-15", "已完成", "bg")
+        task = create_task("已取消过期", "2026-03-01", "2026-03-15", "已取消", "bg")
         create_subtask(task.id, "子", "2026-04-01", "2026-04-30", "未启动", "")
 
         tasks = get_tasks_for_date("2026-04-15")

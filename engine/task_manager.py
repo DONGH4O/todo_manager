@@ -312,7 +312,17 @@ def delete_task(task_id: str) -> bool:
 
 def should_show_task_on_date(task: Task, date_str: str) -> bool:
     """Return whether a non-deleted task should appear on a calendar date."""
-    in_range = is_date_in_range(date_str, task.start_date, task.end_date)
+    display_end = task.end_date
+    if task.status == "已完成":
+        completion = next(
+            (event for event in reversed(task.status_events) if event.to_status == "已完成"),
+            None,
+        )
+        if completion is not None:
+            local_completion = datetime.fromisoformat(completion.occurred_at).astimezone()
+            display_end = local_completion.date().isoformat()
+
+    in_range = is_date_in_range(date_str, task.start_date, display_end)
     ongoing_until_today = (
         date_str <= date.today().isoformat()
         and date_str >= task.start_date
@@ -330,13 +340,9 @@ def _copy_visible_task(task: Task) -> Task:
 def get_tasks_for_dates(date_strs: List[str]) -> dict[str, List[Task]]:
     """返回多个日期各自应展示的任务列表（含未删除的子任务）。
 
-    展示规则（主任务）：
-      条件1: T.deleted == False
-      条件2: date_str 在 [Task.start_date, Task.end_date] 区间内，或
-      条件3: date_str <= 今天
-             AND date_str >= Task.start_date
-             AND T.status IN ("未启动", "完成中")
-      展示当且仅当: 条件1 AND (条件2 OR 条件3)
+    未删除的主任务按开始日至截止日展示，包含首尾两天。
+    已完成任务有完成记录时，以最近一次完成的本地日期为展示终点。
+    未启动或完成中的任务可在截止日之后继续展示至今天。
 
     展示规则（子任务）：
       当主任务被展示时，其下所有 deleted=False 的子任务一并随 Task 返回。

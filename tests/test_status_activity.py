@@ -22,6 +22,8 @@ def test_legacy_records_and_local_midnight(data, monkeypatch):
     legacy = dict(id="legacy-0001", title="此前完成", start_date=day, end_date=day,
                   status="已完成", background="")
     (data / "tasks.json").write_text(json.dumps({"version": 2, "tasks": [legacy]}))
+    assert [task.id for task in tm.get_tasks_for_date(day)] == [legacy["id"]]
+    assert tm.get_tasks_for_date("2026-11-03") == []
     assert not tm.completed_tasks(day, day)
     midnight = datetime.fromisoformat(day)
     for moment, status in [(midnight, "完成中"), (midnight + timedelta(days=1, microseconds=-1), "已完成"),
@@ -33,6 +35,46 @@ def test_legacy_records_and_local_midnight(data, monkeypatch):
     assert [e.to_status for e in events] == ["已完成", "完成中"]
     assert events[-1].from_status == "已完成"
     assert tm.completed_tasks(day, day)[0]["completion_count"] == 1
+
+
+def test_daily_lists_use_latest_completion_date(data, capsys, monkeypatch):
+    bridge = TodoBridge(str(data))
+    monkeypatch.setattr(tm, "_now_iso", lambda: "2026-11-01T12:00:00")
+    task = tm.create_task("逾期完成", "2026-11-01", "2026-11-02", "完成中", "")
+    child = tm.create_subtask(task.id, "子任务", task.start_date, task.end_date, "完成中", "")
+    for day, changes in [
+        ("2026-11-02", {"status": "已完成"}),
+        ("2026-11-03", {"status": "完成中"}),
+        ("2026-11-06", {"status": "已完成"}),
+        ("2026-11-08", {"title": "后来改名"}),
+    ]:
+        # 用 UTC 写入本地当天最后一秒，检查展示日期是否按本地时区计算。
+        local_time = datetime.fromisoformat(f"{day}T23:59:59")
+        stamp = local_time.astimezone(timezone.utc).isoformat()
+        monkeypatch.setattr(tm, "_now_iso", lambda: stamp)
+        tm.update_task(task.id, **changes)
+
+    dates = ["2026-10-31", "2026-11-01", "2026-11-04", "2026-11-06", "2026-11-07"]
+    listed = json.loads(bridge.request(json.dumps({
+        "action": "listTasksForDates", "payload": {"dates": dates},
+    })))
+    assert listed["ok"]
+    rows = listed["result"]
+    assert [[item["id"] for item in rows[day]] for day in dates] == [
+        [], [task.id], [task.id], [task.id], [],
+    ]
+    assert rows["2026-11-04"][0]["end_date"] == task.end_date
+    assert [item["id"] for item in rows["2026-11-04"][0]["subtasks"]] == [child.id]
+
+    assert main(["list", "--date", "2026-11-04", "--json", "--data-dir", str(data)]) == 0
+    listed = json.loads(capsys.readouterr().out)
+    assert [item["id"] for item in listed["result"]["tasks"]] == [task.id]
+
+    assert main(["cal", "2026-11", "--json", "--data-dir", str(data)]) == 0
+    calendar = json.loads(capsys.readouterr().out)["result"]["days"]
+    assert [entry["date"] for entry in calendar if entry["tasks"]] == [
+        f"2026-11-{day:02d}" for day in range(1, 7)
+    ]
 
 
 def test_bridge_cli_reports_and_atomic_failure(data, capsys, monkeypatch):
